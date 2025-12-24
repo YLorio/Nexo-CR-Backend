@@ -1,0 +1,164 @@
+import { PrismaClient, OrderStatus } from '@prisma/client';
+import { IBookingQueryRepository, BookedSlot } from '../../application/ports/outbound';
+
+/**
+ * Implementación Prisma del repositorio de consultas de reservas
+ */
+export class PrismaBookingQueryRepository implements IBookingQueryRepository {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async findBookedSlotsByTenantAndDate(
+    tenantId: string,
+    date: Date,
+  ): Promise<BookedSlot[]> {
+    // Normalizar la fecha a solo fecha (sin tiempo)
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const orderItems = await this.prisma.orderItem.findMany({
+      where: {
+        // Solo items que son servicios (tienen cita)
+        productIsService: true,
+        appointmentDate: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+        appointmentTime: {
+          not: null,
+        },
+        // Solo de órdenes que NO están canceladas
+        order: {
+          tenantId,
+          status: {
+            not: OrderStatus.CANCELLED,
+          },
+        },
+      },
+      select: {
+        appointmentTime: true,
+        durationMinutes: true,
+        productId: true,
+        employeeId: true,
+      },
+    });
+
+    return orderItems
+      .filter(item => item.appointmentTime !== null && item.durationMinutes !== null)
+      .map(item => ({
+        appointmentTime: item.appointmentTime!,
+        durationMinutes: item.durationMinutes!,
+        productId: item.productId,
+        employeeId: item.employeeId,
+      }));
+  }
+
+  async findBookedSlotsByEmployeeAndDate(
+    employeeId: string,
+    date: Date,
+  ): Promise<BookedSlot[]> {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const orderItems = await this.prisma.orderItem.findMany({
+      where: {
+        productIsService: true,
+        employeeId,
+        appointmentDate: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+        appointmentTime: {
+          not: null,
+        },
+        order: {
+          status: {
+            not: OrderStatus.CANCELLED,
+          },
+        },
+      },
+      select: {
+        appointmentTime: true,
+        durationMinutes: true,
+        productId: true,
+        employeeId: true,
+      },
+    });
+
+    return orderItems
+      .filter(item => item.appointmentTime !== null && item.durationMinutes !== null)
+      .map(item => ({
+        appointmentTime: item.appointmentTime!,
+        durationMinutes: item.durationMinutes!,
+        productId: item.productId,
+        employeeId: item.employeeId,
+      }));
+  }
+
+  async countBookingsForSlot(
+    tenantId: string,
+    date: Date,
+    startTime: string,
+  ): Promise<number> {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const count = await this.prisma.orderItem.count({
+      where: {
+        productIsService: true,
+        appointmentDate: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+        appointmentTime: startTime,
+        order: {
+          tenantId,
+          status: {
+            not: OrderStatus.CANCELLED,
+          },
+        },
+      },
+    });
+
+    return count;
+  }
+
+  async countBookingsForEmployeeSlot(
+    employeeId: string,
+    date: Date,
+    startTime: string,
+  ): Promise<number> {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const count = await this.prisma.orderItem.count({
+      where: {
+        productIsService: true,
+        employeeId,
+        appointmentDate: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+        appointmentTime: startTime,
+        order: {
+          status: {
+            not: OrderStatus.CANCELLED,
+          },
+        },
+      },
+    });
+
+    return count;
+  }
+}

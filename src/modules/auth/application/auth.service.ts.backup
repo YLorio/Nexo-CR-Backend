@@ -1,0 +1,136 @@
+import { Injectable } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
+import { PrismaService } from '../../../prisma/prisma.service';
+import {
+  InvalidCredentialsError,
+  UserInactiveError,
+} from '../domain/errors';
+
+export interface JwtPayload {
+  sub: string;
+  email: string;
+  role: string;
+  tenantId: string | null;
+}
+
+export interface AuthenticatedUser {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  tenantId: string | null;
+}
+
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwtService: JwtService,
+  ) {}
+
+  async login(email: string, password: string) {
+    // Buscar usuario con su tenant
+    const user = await this.prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+      include: {
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new InvalidCredentialsError();
+    }
+
+    // Verificar contraseña
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isPasswordValid) {
+      throw new InvalidCredentialsError();
+    }
+
+    // Verificar estado activo
+    if (!user.isActive) {
+      throw new UserInactiveError();
+    }
+
+    // Actualizar último login
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
+
+    // Generar token
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenantId,
+    };
+
+    const accessToken = this.jwtService.sign(payload);
+
+    return {
+      accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        tenantId: user.tenantId,
+        tenant: user.tenant,
+      },
+    };
+  }
+
+  async validateUserById(userId: string): Promise<AuthenticatedUser | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId, isActive: true },
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      tenantId: user.tenantId,
+    };
+  }
+
+  async getUserWithTenant(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId, isActive: true },
+      include: {
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      tenantId: user.tenantId,
+      tenant: user.tenant,
+    };
+  }
+}
