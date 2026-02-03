@@ -34,10 +34,7 @@ import {
 } from '../../application/ports/inbound';
 import { IOrderRepository, ORDER_REPOSITORY } from '../../application/ports/outbound';
 import { Order } from '../../domain/entities';
-<<<<<<< HEAD
-=======
 import { Money } from '../../domain/value-objects';
->>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 
 @ApiTags('Orders')
 @Controller('api/v1/orders')
@@ -60,11 +57,7 @@ export class OrdersController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Crear orden',
-<<<<<<< HEAD
-    description: 'Crea una nueva orden con productos. Valida stock.',
-=======
     description: 'Crea una nueva orden con productos y/o servicios. Valida stock y disponibilidad.',
->>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
   })
   @ApiBody({ type: CreateOrderDto })
   @ApiResponse({
@@ -74,11 +67,7 @@ export class OrdersController {
   })
   @ApiResponse({ status: 400, description: 'Datos inválidos' })
   @ApiResponse({ status: 404, description: 'Producto no encontrado' })
-<<<<<<< HEAD
-  @ApiResponse({ status: 409, description: 'Stock insuficiente' })
-=======
   @ApiResponse({ status: 409, description: 'Stock insuficiente o slot no disponible' })
->>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
   async createOrder(
     @Body() dto: CreateOrderDto,
   ): Promise<CreatedOrderResponseDto> {
@@ -91,11 +80,8 @@ export class OrdersController {
       items: dto.items.map((item) => ({
         productId: item.productId,
         quantity: item.quantity,
-<<<<<<< HEAD
-=======
         appointmentDate: item.appointmentDate,
         appointmentTime: item.appointmentTime,
->>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
       })),
     });
 
@@ -138,11 +124,7 @@ export class OrdersController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Cancelar orden',
-<<<<<<< HEAD
-    description: 'Cancela una orden existente. Restaura stock.',
-=======
     description: 'Cancela una orden existente. Restaura stock y libera slots de citas.',
->>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
   })
   @ApiParam({ name: 'id', type: String, description: 'ID de la orden' })
   @ApiBody({ type: CancelOrderDto })
@@ -174,11 +156,6 @@ export class OrdersController {
       id: item.id,
       productId: item.productId,
       productName: item.productName,
-<<<<<<< HEAD
-      unitPriceInCents: item.unitPriceInCents,
-      quantity: item.quantity,
-      subtotalInCents: item.subtotalInCents,
-=======
       isService: item.productIsService,
       unitPriceInCents: item.unitPriceInCents,
       quantity: item.quantity,
@@ -187,7 +164,6 @@ export class OrdersController {
       appointmentTime: item.appointmentTime,
       durationMinutes: item.durationMinutes,
       appointmentDisplay: item.getAppointmentDisplay(),
->>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
     }));
 
     return {
@@ -210,11 +186,8 @@ export class OrdersController {
       completedAt: order.completedAt,
       cancelledAt: order.cancelledAt,
       items,
-<<<<<<< HEAD
-=======
       hasPhysicalProducts: order.hasPhysicalProducts,
       hasServices: order.hasServices,
->>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
     };
   }
 }

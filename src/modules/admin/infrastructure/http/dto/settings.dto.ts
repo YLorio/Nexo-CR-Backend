@@ -23,18 +23,6 @@ export class UpdateSettingsDto {
   name?: string;
 
   @ApiPropertyOptional({
-<<<<<<< HEAD
-    description: 'Tagline o descripción corta del negocio',
-    example: 'Explora nuestro catálogo y encuentra lo que necesitas.',
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  tagline?: string;
-
-  @ApiPropertyOptional({
-=======
->>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
     description: 'Número de WhatsApp (con código de país)',
     example: '+50688887777',
   })

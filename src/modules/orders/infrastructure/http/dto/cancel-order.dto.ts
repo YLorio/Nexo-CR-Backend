@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import { IsString, IsOptional, IsNotEmpty } from 'class-validator';
-=======
 import { IsString, IsUUID, IsOptional, IsNotEmpty } from 'class-validator';
->>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 /**
@@ -10,11 +6,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
  */
 export class CancelOrderDto {
   @ApiProperty({ description: 'ID del tenant' })
-<<<<<<< HEAD
-  @IsString()
-=======
   @IsUUID('4', { message: 'tenantId debe ser un UUID válido' })
->>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
   @IsNotEmpty({ message: 'tenantId es requerido' })
   tenantId: string;
 
@@ -39,8 +31,6 @@ export class StockRestoredItemDto {
 }
 
 /**
-<<<<<<< HEAD
-=======
  * DTO de slot liberado
  */
 export class SlotReleasedItemDto {
@@ -58,7 +48,6 @@ export class SlotReleasedItemDto {
 }
 
 /**
->>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
  * DTO de respuesta para orden cancelada
  */
 export class CancelledOrderResponseDto {
@@ -78,12 +67,6 @@ export class CancelledOrderResponseDto {
   cancelledAt: Date;
 
   @ApiProperty({
-<<<<<<< HEAD
-    description: 'Stock restaurado de productos',
-    type: [StockRestoredItemDto],
-  })
-  stockRestored: StockRestoredItemDto[];
-=======
     description: 'Stock restaurado de productos físicos',
     type: [StockRestoredItemDto],
   })
@@ -94,5 +77,4 @@ export class CancelledOrderResponseDto {
     type: [SlotReleasedItemDto],
   })
   slotsReleased: SlotReleasedItemDto[];
->>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 }

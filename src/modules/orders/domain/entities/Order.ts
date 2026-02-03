@@ -1,11 +1,7 @@
 import { OrderStatus, OrderStatusEnum, Money } from '../value-objects';
 import { OrderItem } from './OrderItem';
 
-<<<<<<< HEAD
-export type PaymentMethodType = 'SINPE_MOVIL' | 'CASH' | 'CARD' | 'TRANSFER' | 'OTHER';
-=======
 export type PaymentMethodType = 'SINPE' | 'CASH';
->>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 
 /**
  * Entity: Order
@@ -63,11 +59,7 @@ export class Order {
     this.customerPhone = props.customerPhone;
     this.customerEmail = props.customerEmail ?? null;
     this._status = new OrderStatus(props.status);
-<<<<<<< HEAD
-    this.paymentMethod = props.paymentMethod ?? 'SINPE_MOVIL';
-=======
     this.paymentMethod = props.paymentMethod ?? 'SINPE';
->>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
     this.customerNotes = props.customerNotes ?? null;
     this._internalNotes = props.internalNotes ?? null;
     this.createdAt = props.createdAt;
@@ -147,15 +139,6 @@ export class Order {
   }
 
   /**
-<<<<<<< HEAD
-   * Marca la orden como aprobada (pago confirmado)
-   */
-  markAsApproved(): void {
-    if (!this._status.canTransitionTo(OrderStatus.approved())) {
-      throw new Error(`Cannot mark order as approved from status: ${this._status.value}`);
-    }
-    this._status = OrderStatus.approved();
-=======
    * Obtiene solo los items que son productos físicos
    */
   get physicalProducts(): OrderItem[] {
@@ -191,7 +174,6 @@ export class Order {
       throw new Error(`Cannot mark order as paid from status: ${this._status.value}`);
     }
     this._status = OrderStatus.paid();
->>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
     this._paidAt = new Date();
     this._updatedAt = new Date();
   }
