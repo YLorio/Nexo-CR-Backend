@@ -27,7 +27,13 @@ import {
 import { AdminCatalogService } from '../../application/admin-catalog.service';
 import { AdminOrdersService } from '../../application/admin-orders.service';
 import { AdminSettingsService } from '../../application/admin-settings.service';
+<<<<<<< HEAD
 import { SupabaseStorageService } from '../../../storage/supabase-storage.service';
+=======
+import { AdminStaffService } from '../../application/admin-staff.service';
+import { SupabaseStorageService } from '../../../storage/supabase-storage.service';
+import { EmployeeWithServices } from '../../application/admin-staff.service';
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 import {
   CreateCatalogItemDto,
   UpdateCatalogItemDto,
@@ -35,9 +41,15 @@ import {
   ListOrdersQueryDto,
   UpdateOrderStatusDto,
   UpdateSettingsDto,
+<<<<<<< HEAD
   CreateCategoryDto,
   UpdateCategoryDto,
   ReorderCategoriesDto,
+=======
+  CreateEmployeeDto,
+  UpdateEmployeeDto,
+  SetAvailabilityDto,
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 } from './dto';
 import { JwtAuthGuard } from '../../../auth/infrastructure/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../auth/infrastructure/guards/roles.guard';
@@ -59,6 +71,10 @@ export class AdminController {
     private readonly catalogService: AdminCatalogService,
     private readonly ordersService: AdminOrdersService,
     private readonly settingsService: AdminSettingsService,
+<<<<<<< HEAD
+=======
+    private readonly staffService: AdminStaffService,
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
     private readonly storageService: SupabaseStorageService,
   ) {}
 
@@ -134,13 +150,18 @@ export class AdminController {
   // ==================== CATEGORÍAS ====================
 
   @Get('categories')
+<<<<<<< HEAD
   @ApiOperation({ summary: 'Listar categorías (plano)' })
+=======
+  @ApiOperation({ summary: 'Listar categorías' })
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
   @ApiResponse({ status: 200, description: 'Lista de categorías' })
   async listCategories(@CurrentUser() user: AuthenticatedUser) {
     const tenantId = this.getTenantId(user);
     return this.catalogService.listCategories(tenantId);
   }
 
+<<<<<<< HEAD
   @Get('categories/tree')
   @ApiOperation({ summary: 'Obtener árbol de categorías con jerarquía' })
   @ApiResponse({ status: 200, description: 'Árbol de categorías' })
@@ -149,12 +170,15 @@ export class AdminController {
     return this.catalogService.getCategoryTree(tenantId);
   }
 
+=======
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
   @Post('categories')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear categoría' })
   @ApiResponse({ status: 201, description: 'Categoría creada' })
   async createCategory(
     @CurrentUser() user: AuthenticatedUser,
+<<<<<<< HEAD
     @Body() dto: CreateCategoryDto,
   ) {
     const tenantId = this.getTenantId(user);
@@ -225,6 +249,12 @@ export class AdminController {
       maxHeight: 400,
     });
     return { url: result.url };
+=======
+    @Body() body: { name: string; description?: string },
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.catalogService.createCategory(tenantId, body.name, body.description);
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
   }
 
   // ==================== ÓRDENES ====================
@@ -407,4 +437,107 @@ export class AdminController {
     }
     return this.settingsService.removeBanner(tenantId, indexNum);
   }
+<<<<<<< HEAD
+=======
+
+  // ==================== EQUIPO (STAFF) ====================
+
+  @Get('staff')
+  @ApiOperation({ summary: 'Listar empleados del negocio' })
+  @ApiResponse({ status: 200, description: 'Lista de empleados' })
+  async listEmployees(@CurrentUser() user: AuthenticatedUser): Promise<EmployeeWithServices[]> {
+    const tenantId = this.getTenantId(user);
+    return this.staffService.listEmployees(tenantId);
+  }
+
+  @Get('staff/:id')
+  @ApiOperation({ summary: 'Obtener un empleado por ID' })
+  @ApiResponse({ status: 200, description: 'Datos del empleado' })
+  async getEmployee(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<EmployeeWithServices> {
+    const tenantId = this.getTenantId(user);
+    return this.staffService.getEmployee(tenantId, id);
+  }
+
+  @Post('staff')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Crear nuevo empleado' })
+  @ApiResponse({ status: 201, description: 'Empleado creado' })
+  async createEmployee(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateEmployeeDto,
+  ): Promise<EmployeeWithServices> {
+    const tenantId = this.getTenantId(user);
+    return this.staffService.createEmployee(tenantId, dto);
+  }
+
+  @Patch('staff/:id')
+  @ApiOperation({ summary: 'Actualizar empleado' })
+  @ApiResponse({ status: 200, description: 'Empleado actualizado' })
+  async updateEmployee(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateEmployeeDto,
+  ): Promise<EmployeeWithServices> {
+    const tenantId = this.getTenantId(user);
+    return this.staffService.updateEmployee(tenantId, id, dto);
+  }
+
+  @Delete('staff/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Eliminar (desactivar) empleado' })
+  @ApiResponse({ status: 204, description: 'Empleado eliminado' })
+  async deleteEmployee(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<void> {
+    const tenantId = this.getTenantId(user);
+    await this.staffService.deleteEmployee(tenantId, id);
+  }
+
+  @Post('staff/:id/availability')
+  @ApiOperation({ summary: 'Configurar horario de disponibilidad del empleado' })
+  @ApiResponse({ status: 200, description: 'Horario configurado' })
+  async setEmployeeAvailability(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: SetAvailabilityDto,
+  ): Promise<{ message: string }> {
+    const tenantId = this.getTenantId(user);
+    await this.staffService.setAvailabilityBlocks(tenantId, id, dto.blocks);
+    return { message: 'Horario actualizado correctamente' };
+  }
+
+  @Post('upload/staff-photo')
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiOperation({ summary: 'Subir foto de empleado' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        image: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Foto subida correctamente' })
+  async uploadStaffPhoto(
+    @CurrentUser() user: AuthenticatedUser,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    this.getTenantId(user); // Verificar que tiene tenant
+
+    if (!file) {
+      throw new BadRequestException('No se proporcionó ninguna imagen');
+    }
+
+    const result = await this.storageService.uploadFile(file, 'staff', {
+      maxWidth: 400,
+      maxHeight: 400,
+    });
+    return { url: result.url };
+  }
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 }

@@ -3,6 +3,10 @@ import {
   CancelOrderCommand,
   CancelledOrderDTO,
   StockRestoredItem,
+<<<<<<< HEAD
+=======
+  SlotReleasedItem,
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 } from '../ports/inbound';
 import {
   IOrderRepository,
@@ -21,8 +25,17 @@ import {
  * Ejecuta una transacción atómica que:
  * 1. Valida que la orden existe y pertenece al tenant
  * 2. Valida que la orden puede ser cancelada (estado válido)
+<<<<<<< HEAD
  * 3. Revierte el stock de productos
  * 4. Marca la orden como CANCELLED
+=======
+ * 3. Revierte el stock de productos físicos
+ * 4. Marca la orden como CANCELLED
+ *
+ * Nota: Los slots de servicios se liberan automáticamente porque
+ * el sistema ignora OrderItems de órdenes con status=CANCELLED
+ * al calcular disponibilidad.
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
  */
 export class CancelOrderUC implements ICancelOrderUC {
   constructor(
@@ -53,14 +66,25 @@ export class CancelOrderUC implements ICancelOrderUC {
         );
       }
 
+<<<<<<< HEAD
       // 4. Revertir stock de productos
       const stockRestored = await this.restoreStock(order);
 
       // 5. Agregar nota interna si hay razón
+=======
+      // 4. Revertir stock de productos físicos
+      const stockRestored = await this.restoreStock(order);
+
+      // 5. Recopilar información de slots liberados
+      const slotsReleased = this.getReleasedSlots(order);
+
+      // 6. Agregar nota interna si hay razón
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
       if (command.reason) {
         order.addInternalNote(`Cancelación: ${command.reason}`);
       }
 
+<<<<<<< HEAD
       // 6. Cancelar la orden
       order.cancel();
 
@@ -69,11 +93,25 @@ export class CancelOrderUC implements ICancelOrderUC {
 
       // 8. Retornar DTO
       return this.toDTO(updatedOrder, stockRestored);
+=======
+      // 7. Cancelar la orden
+      order.cancel();
+
+      // 8. Guardar cambios
+      const updatedOrder = await this.orderRepository.update(order);
+
+      // 9. Retornar DTO
+      return this.toDTO(updatedOrder, stockRestored, slotsReleased);
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
     });
   }
 
   /**
+<<<<<<< HEAD
    * Restaura el stock de todos los productos de la orden
+=======
+   * Restaura el stock de todos los productos físicos de la orden
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
    */
   private async restoreStock(order: Order): Promise<StockRestoredItem[]> {
     const restored: StockRestoredItem[] = [];
@@ -84,7 +122,11 @@ export class CancelOrderUC implements ICancelOrderUC {
       { name: string; quantity: number }
     >();
 
+<<<<<<< HEAD
     for (const item of order.items) {
+=======
+    for (const item of order.physicalProducts) {
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
       const existing = quantityByProduct.get(item.productId);
       if (existing) {
         existing.quantity += item.quantity;
@@ -111,11 +153,33 @@ export class CancelOrderUC implements ICancelOrderUC {
   }
 
   /**
+<<<<<<< HEAD
+=======
+   * Obtiene información de los slots que serán liberados
+   * (No necesitamos hacer nada en BD, solo reportar)
+   */
+  private getReleasedSlots(order: Order): SlotReleasedItem[] {
+    return order.serviceItems
+      .filter((item) => item.hasAppointment)
+      .map((item) => ({
+        productId: item.productId,
+        serviceName: item.productName,
+        appointmentDate: item.appointmentDate!.toISOString().split('T')[0],
+        appointmentTime: item.appointmentTime!,
+      }));
+  }
+
+  /**
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
    * Mapea a DTO de respuesta
    */
   private toDTO(
     order: Order,
     stockRestored: StockRestoredItem[],
+<<<<<<< HEAD
+=======
+    slotsReleased: SlotReleasedItem[],
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
   ): CancelledOrderDTO {
     return {
       id: order.id,
@@ -124,6 +188,10 @@ export class CancelOrderUC implements ICancelOrderUC {
       status: order.status.value,
       cancelledAt: order.cancelledAt!,
       stockRestored,
+<<<<<<< HEAD
+=======
+      slotsReleased,
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
     };
   }
 }

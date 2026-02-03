@@ -1,7 +1,13 @@
 // ============================================================================
+<<<<<<< HEAD
 // NexoCR V2.0 - Schema de Base de Datos (Solo Productos)
 // Arquitectura: Multi-Tenant
 // Base de Datos: MySQL
+=======
+// NexoCR V2.0 - Enterprise SaaS Database Schema
+// Architecture: Multi-Tenant with Hybrid Identity Model ("Credit Bureau" Pattern)
+// Database: MySQL
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 // ============================================================================
 
 generator client {
@@ -17,6 +23,7 @@ datasource db {
 // ENUMS
 // ============================================================================
 
+<<<<<<< HEAD
 enum RolUsuario {
   SUPER_ADMIN
   DUENO_NEGOCIO
@@ -76,10 +83,88 @@ enum EstadoListaEspera {
 }
 
 enum Moneda {
+=======
+enum UserRole {
+  SUPER_ADMIN
+  TENANT_OWNER
+  TENANT_ADMIN
+  TENANT_STAFF
+  CUSTOMER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+}
+
+enum CategoryScope {
+  INVENTORY
+  SERVICE
+  BOTH
+}
+
+enum ReservationStatus {
+  ACTIVE
+  RELEASED
+  CONFIRMED
+}
+
+enum OrderStatus {
+  DRAFT
+  AWAITING_PAYMENT
+  AWAITING_APPROVAL
+  APPROVED
+  REJECTED
+  PROCESSING
+  READY
+  SHIPPED
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIAL
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  TRANSFER
+  SINPE_MOVIL
+  OTHER
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  NO_SHOW
+  CANCELLED
+}
+
+enum WaitlistStatus {
+  WAITING
+  NOTIFIED
+  CONVERTED
+  EXPIRED
+  CANCELLED
+}
+
+enum Currency {
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
   CRC
   USD
 }
 
+<<<<<<< HEAD
 enum TipoPlan {
   GRATIS
   BASICO
@@ -787,4 +872,1013 @@ model ContadorPedidos {
   negocio             Negocio   @relation(fields: [negocioId], references: [id], onDelete: Cascade)
 
   @@map("contadores_pedido")
+=======
+enum PlanType {
+  FREE
+  BASIC
+  PREMIUM
+  ENTERPRISE
+}
+
+enum DayOfWeek {
+  SUNDAY
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+}
+
+// ============================================================================
+// CORE: TENANT (Business/Organization)
+// Root entity for multi-tenancy isolation
+// ============================================================================
+
+model Tenant {
+  id                  String    @id @default(cuid())
+  slug                String    @unique @db.VarChar(100)
+  name                String    @db.VarChar(255)
+  legalName           String?   @db.VarChar(255)
+  taxId               String?   @db.VarChar(50)
+
+  // Branding
+  logo                String?   @db.VarChar(500)
+  primaryColor        String    @default("#6366f1") @db.VarChar(7)
+  accentColor         String    @default("#f59e0b") @db.VarChar(7)
+
+  // Contact
+  email               String?   @db.VarChar(255)
+  phone               String?   @db.VarChar(20)
+  whatsappNumber      String?   @db.VarChar(20)
+  website             String?   @db.VarChar(500)
+
+  // Settings
+  defaultCurrency     Currency  @default(CRC)
+  timezone            String    @default("America/Costa_Rica") @db.VarChar(50)
+  planType            PlanType  @default(FREE)
+
+  // Checkout & Order Settings
+  allowGuestCheckout  Boolean   @default(true)
+  requireOrderApproval Boolean  @default(false)
+  orderApprovalTimeoutMinutes Int @default(60)
+  lowReputationThreshold Int    @default(50)
+
+  // Status
+  isActive            Boolean   @default(true)
+
+  // Audit
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
+
+  // Relations
+  banners             TenantBanner[]
+  categories          Category[]
+  customerProfiles    CustomerProfile[]
+  inventoryItems      InventoryItem[]
+  serviceDefinitions  ServiceDefinition[]
+  orders              Order[]
+  staff               TenantStaff[]
+  addresses           Address[]
+  orderCounter        TenantOrderCounter?
+
+  @@index([slug])
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("tenants")
+}
+
+// ============================================================================
+// TENANT BANNERS (Replaces String[] bannerUrls)
+// ============================================================================
+
+model TenantBanner {
+  id          String   @id @default(cuid())
+  tenantId    String
+  imageUrl    String   @db.VarChar(500)
+  altText     String?  @db.VarChar(255)
+  linkUrl     String?  @db.VarChar(500)
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+
+  // Audit
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, isActive, sortOrder])
+  @@map("tenant_banners")
+}
+
+// ============================================================================
+// IDENTITY: USER (Global Platform Identity)
+// Single source of truth for authentication across all tenants
+// ============================================================================
+
+model User {
+  id                  String     @id @default(cuid())
+  email               String     @unique @db.VarChar(255)
+  phone               String?    @unique @db.VarChar(20)
+  passwordHash        String?    @db.VarChar(255)
+
+  // Profile
+  firstName           String?    @db.VarChar(100)
+  lastName            String?    @db.VarChar(100)
+  avatarUrl           String?    @db.VarChar(500)
+
+  // Status
+  role                UserRole   @default(CUSTOMER)
+  status              UserStatus @default(PENDING_VERIFICATION)
+  emailVerifiedAt     DateTime?
+  phoneVerifiedAt     DateTime?
+
+  // Security
+  lastLoginAt         DateTime?
+  failedLoginAttempts Int        @default(0)
+  lockedUntil         DateTime?
+
+  // Shadow Profile Merge Tracking
+  mergedFromShadowId  String?    @db.VarChar(30)
+  mergedAt            DateTime?
+
+  // Audit
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  deletedAt           DateTime?
+
+  // Relations
+  globalReputation    GlobalReputation?
+  customerProfiles    CustomerProfile[]
+  staffAssignments    TenantStaff[]
+  waitlistRequests    WaitlistRequest[]
+  bookings            Booking[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+// ============================================================================
+// IDENTITY: GLOBAL REPUTATION ("Credit Bureau" Pattern)
+// Visible to ALL businesses - tracks cross-platform behavior
+// ============================================================================
+
+model GlobalReputation {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+
+  // Reputation Metrics (0-100 scale)
+  reputationScore     Int      @default(100)
+
+  // Order History (aggregated across all tenants)
+  totalOrders         Int      @default(0)
+  completedOrders     Int      @default(0)
+  cancelledOrders     Int      @default(0)
+  rejectedOrders      Int      @default(0)
+
+  // Booking History (aggregated across all tenants)
+  totalBookings       Int      @default(0)
+  completedBookings   Int      @default(0)
+  noShowCount         Int      @default(0)
+  lateArrivalCount    Int      @default(0)
+  lastNoShowAt        DateTime?
+
+  // Risk Assessment
+  isHighRisk          Boolean  @default(false)
+  riskNotes           String?  @db.Text
+
+  // Audit
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([reputationScore])
+  @@index([isHighRisk])
+  @@map("global_reputations")
+}
+
+// ============================================================================
+// IDENTITY: CUSTOMER PROFILE (Per-Tenant Private Data)
+// Each business sees ONLY their own customer data - strict isolation
+// ============================================================================
+
+model CustomerProfile {
+  id                  String    @id @default(cuid())
+  tenantId            String
+  userId              String
+
+  // Tenant-Specific Private Data
+  internalNotes       String?   @db.Text
+  tagsJson            Json?     @map("tags") // Stored as JSON array: ["VIP", "Wholesale"]
+  preferredContactMethod String? @db.VarChar(20)
+
+  // Tenant-Specific Metrics
+  totalSpentCents     BigInt    @default(0)
+  orderCount          Int       @default(0)
+  lastOrderAt         DateTime?
+  averageOrderCents   Int       @default(0)
+
+  // Tenant-Specific Booking Metrics
+  bookingCount        Int       @default(0)
+  lastBookingAt       DateTime?
+  noShowCountLocal    Int       @default(0)
+
+  // Loyalty (per tenant)
+  loyaltyPoints       Int       @default(0)
+  tierLevel           String?   @db.VarChar(50)
+
+  // Audit
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
+
+  // Relations
+  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders              Order[]
+  bookings            Booking[]
+
+  @@unique([tenantId, userId])
+  @@index([tenantId])
+  @@index([userId])
+  @@index([tenantId, lastOrderAt])
+  @@index([deletedAt])
+  @@map("customer_profiles")
+}
+
+// ============================================================================
+// IDENTITY: SHADOW PROFILE (Guest Checkout Tracking)
+// Temporary identity for guests - merged when they register
+// ============================================================================
+
+model ShadowProfile {
+  id                  String    @id @default(cuid())
+
+  // Contact Info
+  email               String?   @db.VarChar(255)
+  phone               String?   @db.VarChar(20)
+  normalizedEmail     String?   @db.VarChar(255)
+  normalizedPhone     String?   @db.VarChar(20)
+
+  // Guest Info
+  firstName           String?   @db.VarChar(100)
+  lastName            String?   @db.VarChar(100)
+
+  // Implicit Matching
+  matchedUserId       String?   @db.VarChar(30)
+  matchConfidence     Float?
+  matchedAt           DateTime?
+
+  // Explicit Merge
+  isMerged            Boolean   @default(false)
+  mergedToUserId      String?   @db.VarChar(30)
+  mergedAt            DateTime?
+
+  // GDPR Compliance
+  consentGiven        Boolean   @default(false)
+  consentText         String?   @db.Text
+  consentTimestamp    DateTime?
+  expiresAt           DateTime?
+
+  // Audit
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relations
+  orders              Order[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([normalizedEmail])
+  @@index([normalizedPhone])
+  @@index([matchedUserId])
+  @@index([isMerged])
+  @@index([expiresAt])
+  @@map("shadow_profiles")
+}
+
+// ============================================================================
+// TENANT STAFF (Employee Assignment per Business)
+// ============================================================================
+
+model TenantStaff {
+  id                  String    @id @default(cuid())
+  tenantId            String
+  userId              String
+
+  // Role within this tenant
+  role                UserRole  @default(TENANT_STAFF)
+  jobTitle            String?   @db.VarChar(100)
+
+  // Booking Capability
+  canReceiveBookings  Boolean   @default(false)
+  bookingColor        String?   @db.VarChar(7)
+
+  // Granular Permissions
+  permissions         Json?
+
+  // Status
+  isActive            Boolean   @default(true)
+
+  // Audit
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
+
+  // Relations
+  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceAssignments  ServiceStaffAssignment[]
+  bookings            Booking[]
+
+  @@unique([tenantId, userId])
+  @@index([tenantId])
+  @@index([tenantId, canReceiveBookings])
+  @@index([deletedAt])
+  @@map("tenant_staff")
+}
+
+// ============================================================================
+// CATEGORIES (Hierarchical with Materialized Path)
+// ============================================================================
+
+model Category {
+  id                  String        @id @default(cuid())
+  tenantId            String
+  parentId            String?
+
+  // Basic Info
+  name                String        @db.VarChar(100)
+  slug                String        @db.VarChar(100)
+  description         String?       @db.Text
+  imageUrl            String?       @db.VarChar(500)
+
+  // Hierarchy (Materialized Path)
+  path                String        @db.VarChar(1000)
+  depth               Int           @default(0)
+
+  // Scope
+  scope               CategoryScope @default(BOTH)
+
+  // Display
+  sortOrder           Int           @default(0)
+  isVisible           Boolean       @default(true)
+
+  // SEO
+  metaTitle           String?       @db.VarChar(255)
+  metaDescription     String?       @db.VarChar(500)
+
+  // Audit
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  deletedAt           DateTime?
+
+  // Relations
+  tenant              Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent              Category?     @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children            Category[]    @relation("CategoryHierarchy")
+  inventoryItems      InventoryItem[]
+  serviceDefinitions  ServiceDefinition[]
+
+  @@unique([tenantId, slug])
+  @@unique([tenantId, parentId, name])
+  @@index([tenantId, parentId])
+  @@index([tenantId, path(length: 255)])
+  @@index([tenantId, scope])
+  @@index([deletedAt])
+  @@map("categories")
+}
+
+// ============================================================================
+// INVENTORY: INVENTORY ITEM (Visual/Catalog Data)
+// ============================================================================
+
+model InventoryItem {
+  id                  String    @id @default(cuid())
+  tenantId            String
+  categoryId          String?
+
+  // Basic Info
+  name                String    @db.VarChar(255)
+  slug                String    @db.VarChar(255)
+  description         String?   @db.Text
+  shortDescription    String?   @db.VarChar(500)
+
+  // Brand/Manufacturer
+  brand               String?   @db.VarChar(100)
+  manufacturer        String?   @db.VarChar(100)
+  model               String?   @db.VarChar(100)
+
+  // Physical Attributes
+  weightGrams         Int?
+  lengthCm            Float?
+  widthCm             Float?
+  heightCm            Float?
+
+  // Flags
+  isActive            Boolean   @default(true)
+  isFeatured          Boolean   @default(false)
+
+  // SEO
+  metaTitle           String?   @db.VarChar(255)
+  metaDescription     String?   @db.VarChar(500)
+
+  // Audit
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
+
+  // Relations
+  tenant              Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category            Category?        @relation(fields: [categoryId], references: [id])
+  images              ItemImage[]
+  variants            ProductVariant[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, categoryId])
+  @@index([tenantId, isActive])
+  @@index([tenantId, isFeatured])
+  @@index([deletedAt])
+  @@map("inventory_items")
+}
+
+// ============================================================================
+// INVENTORY: ITEM IMAGES (Replaces String[] images)
+// ============================================================================
+
+model ItemImage {
+  id              String   @id @default(cuid())
+  inventoryItemId String
+  imageUrl        String   @db.VarChar(500)
+  altText         String?  @db.VarChar(255)
+  sortOrder       Int      @default(0)
+  isPrimary       Boolean  @default(false)
+
+  // Audit
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+
+  @@index([inventoryItemId, sortOrder])
+  @@index([inventoryItemId, isPrimary])
+  @@map("item_images")
+}
+
+// ============================================================================
+// INVENTORY: PRODUCT VARIANT (Transactional Data)
+// Every InventoryItem MUST have at least one variant
+// ============================================================================
+
+model ProductVariant {
+  id                  String    @id @default(cuid())
+  inventoryItemId     String
+
+  // Identification
+  sku                 String    @db.VarChar(100)
+  barcode             String?   @db.VarChar(100)
+  supplierSku         String?   @db.VarChar(100)
+
+  // Variant Attributes
+  name                String?   @db.VarChar(255)
+  attributes          Json?
+
+  // Pricing (in cents)
+  costInCents         Int       @default(0)
+  priceInCents        Int
+  comparePriceInCents Int?
+  currency            Currency  @default(CRC)
+
+  // Stock Management
+  stock               Int       @default(0)
+  lowStockThreshold   Int       @default(5)
+  reservedStock       Int       @default(0)
+
+  // Availability Logic
+  allowBackorder      Boolean   @default(false)
+  trackInventory      Boolean   @default(true)
+
+  // Flags
+  isDefault           Boolean   @default(false)
+  isActive            Boolean   @default(true)
+
+  // Audit
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
+
+  // Relations
+  inventoryItem       InventoryItem      @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  stockReservations   StockReservation[]
+  waitlistRequests    WaitlistRequest[]
+  orderItems          OrderItem[]
+
+  @@unique([inventoryItemId, sku])
+  @@index([sku])
+  @@index([barcode])
+  @@index([inventoryItemId, isDefault])
+  @@index([inventoryItemId, isActive])
+  @@index([deletedAt])
+  @@map("product_variants")
+}
+
+// ============================================================================
+// INVENTORY: STOCK RESERVATION (Prevents "Zombie Stock")
+// ============================================================================
+
+model StockReservation {
+  id                  String            @id @default(cuid())
+  variantId           String
+  orderId             String
+
+  // Reservation Details
+  quantity            Int
+  status              ReservationStatus @default(ACTIVE)
+
+  // TTL
+  expiresAt           DateTime
+
+  // Resolution Tracking
+  releasedAt          DateTime?
+  confirmedAt         DateTime?
+  releaseReason       String?   @db.VarChar(100)
+
+  // Audit
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relations
+  variant             ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  order               Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([variantId, status])
+  @@index([orderId])
+  @@index([status, expiresAt])
+  @@map("stock_reservations")
+}
+
+// ============================================================================
+// INVENTORY: WAITLIST REQUEST (Queue for Out-of-Stock Items)
+// ============================================================================
+
+model WaitlistRequest {
+  id                  String         @id @default(cuid())
+  variantId           String
+  userId              String?
+
+  // Contact
+  email               String         @db.VarChar(255)
+  phone               String?        @db.VarChar(20)
+  firstName           String?        @db.VarChar(100)
+
+  // Request Details
+  requestedQuantity   Int            @default(1)
+  status              WaitlistStatus @default(WAITING)
+
+  // Notification Tracking
+  notifiedAt          DateTime?
+  notificationCount   Int            @default(0)
+  lastNotificationError String?      @db.VarChar(500)
+
+  // Conversion
+  convertedOrderId    String?        @db.VarChar(30)
+  convertedAt         DateTime?
+
+  // Expiration
+  expiresAt           DateTime?
+
+  // Audit
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  // Relations
+  variant             ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  user                User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([variantId, status])
+  @@index([userId])
+  @@index([email])
+  @@index([status, expiresAt])
+  @@map("waitlist_requests")
+}
+
+// ============================================================================
+// SERVICES: SERVICE DEFINITION (Booking Catalog)
+// ============================================================================
+
+model ServiceDefinition {
+  id                  String    @id @default(cuid())
+  tenantId            String
+  categoryId          String?
+
+  // Basic Info
+  name                String    @db.VarChar(255)
+  slug                String    @db.VarChar(255)
+  description         String?   @db.Text
+  shortDescription    String?   @db.VarChar(500)
+
+  // Pricing
+  basePriceInCents    Int
+  currency            Currency  @default(CRC)
+
+  // Duration & Scheduling
+  durationMinutes     Int
+  bufferMinutes       Int       @default(0)
+  timezone            String    @default("America/Costa_Rica") @db.VarChar(50)
+
+  // Capacity
+  maxCapacity         Int       @default(1)
+
+  // Booking Rules
+  minAdvanceMinutes   Int       @default(60)
+  maxAdvanceDays      Int       @default(30)
+  cancellationMinutes Int       @default(1440)
+
+  // Waitlist
+  allowWaitlist       Boolean   @default(true)
+
+  // Approval
+  requiresApproval    Boolean   @default(false)
+
+  // Flags
+  isActive            Boolean   @default(true)
+  isFeatured          Boolean   @default(false)
+
+  // SEO
+  metaTitle           String?   @db.VarChar(255)
+  metaDescription     String?   @db.VarChar(500)
+
+  // Audit
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
+
+  // Relations
+  tenant              Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category            Category?                @relation(fields: [categoryId], references: [id])
+  images              ServiceImage[]
+  staffAssignments    ServiceStaffAssignment[]
+  timeSlots           ServiceTimeSlot[]
+  bookings            Booking[]
+  orderItems          OrderItem[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, categoryId])
+  @@index([tenantId, isActive])
+  @@index([deletedAt])
+  @@map("service_definitions")
+}
+
+// ============================================================================
+// SERVICES: SERVICE IMAGES (Replaces String[] images)
+// ============================================================================
+
+model ServiceImage {
+  id          String   @id @default(cuid())
+  serviceId   String
+  imageUrl    String   @db.VarChar(500)
+  altText     String?  @db.VarChar(255)
+  sortOrder   Int      @default(0)
+  isPrimary   Boolean  @default(false)
+
+  // Audit
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  service     ServiceDefinition @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId, sortOrder])
+  @@index([serviceId, isPrimary])
+  @@map("service_images")
+}
+
+// ============================================================================
+// SERVICES: STAFF ASSIGNMENT (Who can perform which service)
+// ============================================================================
+
+model ServiceStaffAssignment {
+  id                    String            @id @default(cuid())
+  serviceId             String
+  staffId               String
+
+  // Override pricing
+  customPriceInCents    Int?
+  customDurationMinutes Int?
+
+  // Status
+  isActive              Boolean           @default(true)
+
+  // Audit
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  // Relations
+  service               ServiceDefinition @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  staff                 TenantStaff       @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, staffId])
+  @@index([staffId])
+  @@index([serviceId, isActive])
+  @@map("service_staff_assignments")
+}
+
+// ============================================================================
+// SERVICES: TIME SLOTS (Availability Windows)
+// ============================================================================
+
+model ServiceTimeSlot {
+  id                  String            @id @default(cuid())
+  serviceId           String
+
+  // Recurring Schedule
+  dayOfWeek           DayOfWeek?
+  startTime           String            @db.VarChar(5)
+  endTime             String            @db.VarChar(5)
+
+  // Specific Date Override
+  specificDate        DateTime?         @db.Date
+  isBlocked           Boolean           @default(false)
+  blockReason         String?           @db.VarChar(255)
+
+  // Capacity Override
+  capacityOverride    Int?
+
+  // Audit
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  // Relations
+  service             ServiceDefinition @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId, dayOfWeek])
+  @@index([serviceId, specificDate])
+  @@index([serviceId, isBlocked])
+  @@map("service_time_slots")
+}
+
+// ============================================================================
+// SERVICES: BOOKING (Appointment Instance)
+// ============================================================================
+
+model Booking {
+  id                  String        @id @default(cuid())
+  serviceId           String
+  customerId          String
+  staffId             String?
+  orderId             String?
+
+  // Direct User Reference
+  userId              String
+
+  // Schedule
+  scheduledStart      DateTime
+  scheduledEnd        DateTime
+  timezone            String        @db.VarChar(50)
+
+  // Status
+  status              BookingStatus @default(PENDING)
+
+  // Check-in Tracking
+  checkedInAt         DateTime?
+  completedAt         DateTime?
+  noShowMarkedAt      DateTime?
+
+  // Cancellation
+  cancelledAt         DateTime?
+  cancelledBy         String?       @db.VarChar(30)
+  cancellationReason  String?       @db.VarChar(500)
+  isLateCancellation  Boolean       @default(false)
+
+  // Notes
+  customerNotes       String?       @db.Text
+  staffNotes          String?       @db.Text
+
+  // Pricing Snapshot
+  priceInCents        Int
+  currency            Currency
+
+  // Reminder Tracking
+  reminderSentAt      DateTime?
+  confirmationSentAt  DateTime?
+
+  // Audit
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  deletedAt           DateTime?
+
+  // Relations
+  service             ServiceDefinition @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  customer            CustomerProfile   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  staff               TenantStaff?      @relation(fields: [staffId], references: [id])
+  user                User              @relation(fields: [userId], references: [id])
+  order               Order?            @relation(fields: [orderId], references: [id])
+
+  @@index([serviceId, scheduledStart])
+  @@index([customerId])
+  @@index([staffId, scheduledStart])
+  @@index([userId])
+  @@index([status])
+  @@index([scheduledStart])
+  @@index([deletedAt])
+  @@map("bookings")
+}
+
+// ============================================================================
+// ORDERS: ORDER (Main Transaction Record)
+// ============================================================================
+
+model Order {
+  id                  String        @id @default(cuid())
+  tenantId            String
+  orderNumber         String        @db.VarChar(50)
+
+  // Customer Identity (ONE must be set)
+  customerProfileId   String?
+  shadowProfileId     String?
+
+  // Status
+  status              OrderStatus   @default(DRAFT)
+  paymentStatus       PaymentStatus @default(PENDING)
+
+  // Approval Workflow
+  requiresApproval    Boolean       @default(false)
+  approvalExpiresAt   DateTime?
+  approvedAt          DateTime?
+  approvedBy          String?       @db.VarChar(30)
+  rejectedAt          DateTime?
+  rejectedBy          String?       @db.VarChar(30)
+  rejectionReason     String?       @db.VarChar(500)
+
+  // Risk Assessment (snapshot)
+  customerReputationScore Int?
+  isHighRiskOrder     Boolean       @default(false)
+
+  // Pricing (in cents)
+  subtotalCents       Int           @default(0)
+  discountCents       Int           @default(0)
+  taxCents            Int           @default(0)
+  shippingCents       Int           @default(0)
+  totalCents          Int           @default(0)
+  currency            Currency      @default(CRC)
+
+  // Payment
+  paymentMethod       PaymentMethod?
+  paidAt              DateTime?
+  paidAmountCents     Int           @default(0)
+  paymentReference    String?       @db.VarChar(255)
+
+  // Fulfillment
+  shippingAddressId   String?
+  billingAddressId    String?
+  trackingNumber      String?       @db.VarChar(100)
+  shippedAt           DateTime?
+  deliveredAt         DateTime?
+
+  // Notes
+  customerNotes       String?       @db.Text
+  internalNotes       String?       @db.Text
+
+  // Key Timestamps
+  placedAt            DateTime?
+  completedAt         DateTime?
+  cancelledAt         DateTime?
+  cancelledBy         String?       @db.VarChar(30)
+  cancellationReason  String?       @db.VarChar(500)
+
+  // Audit
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  deletedAt           DateTime?
+
+  // Relations
+  tenant              Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerProfile     CustomerProfile? @relation(fields: [customerProfileId], references: [id])
+  shadowProfile       ShadowProfile?   @relation(fields: [shadowProfileId], references: [id])
+  shippingAddress     Address?         @relation("ShippingAddress", fields: [shippingAddressId], references: [id])
+  billingAddress      Address?         @relation("BillingAddress", fields: [billingAddressId], references: [id])
+  items               OrderItem[]
+  stockReservations   StockReservation[]
+  bookings            Booking[]
+
+  @@unique([tenantId, orderNumber])
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+  @@index([customerProfileId])
+  @@index([shadowProfileId])
+  @@index([status, approvalExpiresAt])
+  @@index([paymentStatus])
+  @@index([deletedAt])
+  @@map("orders")
+}
+
+// ============================================================================
+// ORDERS: ORDER ITEM (Line Items)
+// ============================================================================
+
+model OrderItem {
+  id                  String    @id @default(cuid())
+  orderId             String
+
+  // Item Reference (ONE should be set)
+  variantId           String?
+  serviceId           String?
+
+  // Snapshot at Time of Order
+  name                String    @db.VarChar(255)
+  sku                 String?   @db.VarChar(100)
+  imageUrl            String?   @db.VarChar(500)
+
+  // Quantity & Pricing
+  quantity            Int
+  unitPriceInCents    Int
+  discountCents       Int       @default(0)
+  taxCents            Int       @default(0)
+  totalCents          Int
+
+  // Notes
+  notes               String?   @db.Text
+
+  // Audit
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relations
+  order               Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant             ProductVariant?    @relation(fields: [variantId], references: [id])
+  service             ServiceDefinition? @relation(fields: [serviceId], references: [id])
+
+  @@index([orderId])
+  @@index([variantId])
+  @@index([serviceId])
+  @@map("order_items")
+}
+
+// ============================================================================
+// SUPPORTING: ADDRESS (Costa Rica-specific)
+// ============================================================================
+
+model Address {
+  id                  String    @id @default(cuid())
+  tenantId            String
+
+  // Label
+  label               String?   @db.VarChar(50)
+
+  // Costa Rica Address
+  province            String    @db.VarChar(50)
+  canton              String    @db.VarChar(100)
+  district            String    @db.VarChar(100)
+  streetAddress       String    @db.VarChar(500)
+  additionalInfo      String?   @db.VarChar(500)
+  postalCode          String?   @db.VarChar(20)
+
+  // GPS Coordinates
+  latitude            Float?
+  longitude           Float?
+
+  // Contact
+  contactName         String?   @db.VarChar(100)
+  contactPhone        String?   @db.VarChar(20)
+
+  // Flags
+  isDefault           Boolean   @default(false)
+
+  // Audit
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
+
+  // Relations
+  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  shippingOrders      Order[]   @relation("ShippingAddress")
+  billingOrders       Order[]   @relation("BillingAddress")
+
+  @@index([tenantId])
+  @@index([tenantId, isDefault])
+  @@index([deletedAt])
+  @@map("addresses")
+}
+
+// ============================================================================
+// SUPPORTING: ORDER COUNTER (Sequential Order Numbers)
+// ============================================================================
+
+model TenantOrderCounter {
+  tenantId            String    @id
+  lastNumber          Int       @default(0)
+
+  // Relations
+  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_order_counters")
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 }
