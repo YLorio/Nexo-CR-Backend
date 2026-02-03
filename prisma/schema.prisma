@@ -1,0 +1,790 @@
+// ============================================================================
+// NexoCR V2.0 - Schema de Base de Datos (Solo Productos)
+// Arquitectura: Multi-Tenant
+// Base de Datos: MySQL
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum RolUsuario {
+  SUPER_ADMIN
+  DUENO_NEGOCIO
+  ADMIN_NEGOCIO
+  CLIENTE
+}
+
+enum EstadoUsuario {
+  ACTIVO
+  INACTIVO
+  SUSPENDIDO
+  PENDIENTE_VERIFICACION
+}
+
+enum EstadoReserva {
+  ACTIVA
+  LIBERADA
+  CONFIRMADA
+}
+
+enum EstadoPedido {
+  BORRADOR
+  ESPERANDO_PAGO
+  ESPERANDO_APROBACION
+  APROBADO
+  RECHAZADO
+  PROCESANDO
+  LISTO
+  ENVIADO
+  COMPLETADO
+  CANCELADO
+  REEMBOLSADO
+}
+
+enum EstadoPago {
+  PENDIENTE
+  PAGADO
+  PARCIAL
+  FALLIDO
+  REEMBOLSADO
+}
+
+enum MetodoPago {
+  EFECTIVO
+  TARJETA
+  TRANSFERENCIA
+  SINPE_MOVIL
+  OTRO
+}
+
+enum EstadoListaEspera {
+  ESPERANDO
+  NOTIFICADO
+  CONVERTIDO
+  EXPIRADO
+  CANCELADO
+}
+
+enum Moneda {
+  CRC
+  USD
+}
+
+enum TipoPlan {
+  GRATIS
+  BASICO
+  PREMIUM
+  EMPRESARIAL
+}
+
+// ============================================================================
+// NEGOCIO (Tenant/Tienda)
+// ============================================================================
+
+model Negocio {
+  id                  String    @id @default(cuid())
+  slug                String    @unique @db.VarChar(100)
+  nombre              String    @db.VarChar(255)
+  nombreLegal         String?   @db.VarChar(255)
+  cedulaJuridica      String?   @db.VarChar(50)
+
+  // Marca
+  logo                String?   @db.VarChar(500)
+  eslogan             String?   @db.VarChar(500)
+  colorPrimario       String    @default("#6366f1") @db.VarChar(7)
+  colorSecundario     String    @default("#f59e0b") @db.VarChar(7)
+
+  // Contacto
+  email               String?   @db.VarChar(255)
+  telefono            String?   @db.VarChar(20)
+  whatsapp            String?   @db.VarChar(20)
+  sitioWeb            String?   @db.VarChar(500)
+
+  // Configuracion
+  moneda              Moneda    @default(CRC)
+  zonaHoraria         String    @default("America/Costa_Rica") @db.VarChar(50)
+  tipoPlan            TipoPlan  @default(GRATIS)
+
+  // Configuracion de Pedidos
+  permitirCompraInvitado Boolean @default(true)
+  requiereAprobacion   Boolean  @default(false)
+  tiempoAprobacionMin  Int      @default(60)
+  umbralReputacionBaja Int      @default(50)
+
+  // Estado
+  activo              Boolean   @default(true)
+
+  // Auditoria
+  creadoEn            DateTime  @default(now())
+  actualizadoEn       DateTime  @updatedAt
+  eliminadoEn         DateTime?
+
+  // Relaciones
+  banners             BannerNegocio[]
+  categorias          Categoria[]
+  perfilesCliente     PerfilCliente[]
+  productos           Producto[]
+  pedidos             Pedido[]
+  direcciones         Direccion[]
+  contadorPedidos     ContadorPedidos?
+
+  @@index([slug])
+  @@index([activo])
+  @@index([eliminadoEn])
+  @@map("negocios")
+}
+
+// ============================================================================
+// BANNERS DEL NEGOCIO
+// ============================================================================
+
+model BannerNegocio {
+  id          String   @id @default(cuid())
+  negocioId   String
+  urlImagen   String   @db.VarChar(500)
+  textoAlt    String?  @db.VarChar(255)
+  urlEnlace   String?  @db.VarChar(500)
+  orden       Int      @default(0)
+  activo      Boolean  @default(true)
+
+  // Auditoria
+  creadoEn    DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  // Relaciones
+  negocio     Negocio  @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+
+  @@index([negocioId, activo, orden])
+  @@map("banners_negocio")
+}
+
+// ============================================================================
+// USUARIO
+// ============================================================================
+
+model Usuario {
+  id                  String        @id @default(cuid())
+  email               String        @unique @db.VarChar(255)
+  telefono            String?       @unique @db.VarChar(20)
+  contrasenaHash      String?       @db.VarChar(255)
+
+  // Asociacion con Negocio (para admins)
+  negocioId           String?
+
+  // Perfil
+  nombre              String?       @db.VarChar(100)
+  apellido            String?       @db.VarChar(100)
+  urlAvatar           String?       @db.VarChar(500)
+
+  // Estado
+  rol                 RolUsuario    @default(CLIENTE)
+  estado              EstadoUsuario @default(PENDIENTE_VERIFICACION)
+  emailVerificadoEn   DateTime?
+  telefonoVerificadoEn DateTime?
+
+  // Seguridad
+  ultimoLoginEn       DateTime?
+  intentosFallidos    Int           @default(0)
+  bloqueadoHasta      DateTime?
+
+  // Fusion de Perfiles
+  fusionadoDesdeId    String?       @db.VarChar(30)
+  fusionadoEn         DateTime?
+
+  // Auditoria
+  creadoEn            DateTime      @default(now())
+  actualizadoEn       DateTime      @updatedAt
+  eliminadoEn         DateTime?
+
+  // Relaciones
+  reputacion          Reputacion?
+  perfilesCliente     PerfilCliente[]
+  solicitudesEspera   SolicitudEspera[]
+
+  @@index([email])
+  @@index([telefono])
+  @@index([estado])
+  @@index([negocioId])
+  @@index([eliminadoEn])
+  @@map("usuarios")
+}
+
+// ============================================================================
+// REPUTACION GLOBAL
+// ============================================================================
+
+model Reputacion {
+  id                  String   @id @default(cuid())
+  usuarioId           String   @unique
+
+  // Metricas (escala 0-100)
+  puntuacion          Int      @default(100)
+
+  // Historial de Pedidos
+  totalPedidos        Int      @default(0)
+  pedidosCompletados  Int      @default(0)
+  pedidosCancelados   Int      @default(0)
+  pedidosRechazados   Int      @default(0)
+
+  // Evaluacion de Riesgo
+  altoRiesgo          Boolean  @default(false)
+  notasRiesgo         String?  @db.Text
+
+  // Auditoria
+  creadoEn            DateTime @default(now())
+  actualizadoEn       DateTime @updatedAt
+
+  // Relaciones
+  usuario             Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([puntuacion])
+  @@index([altoRiesgo])
+  @@map("reputaciones")
+}
+
+// ============================================================================
+// PERFIL DE CLIENTE (Por Negocio)
+// ============================================================================
+
+model PerfilCliente {
+  id                  String    @id @default(cuid())
+  negocioId           String
+  usuarioId           String
+
+  // Datos Privados del Negocio
+  notasInternas       String?   @db.Text
+  etiquetasJson       Json?     @map("etiquetas")
+  metodoContactoPref  String?   @db.VarChar(20)
+
+  // Metricas por Negocio
+  totalGastadoCents   BigInt    @default(0)
+  cantidadPedidos     Int       @default(0)
+  ultimoPedidoEn      DateTime?
+  promedioGastoCents  Int       @default(0)
+
+  // Lealtad
+  puntosLealtad       Int       @default(0)
+  nivelTier           String?   @db.VarChar(50)
+
+  // Auditoria
+  creadoEn            DateTime  @default(now())
+  actualizadoEn       DateTime  @updatedAt
+  eliminadoEn         DateTime?
+
+  // Relaciones
+  negocio             Negocio   @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  usuario             Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  pedidos             Pedido[]
+
+  @@unique([negocioId, usuarioId])
+  @@index([negocioId])
+  @@index([usuarioId])
+  @@index([negocioId, ultimoPedidoEn])
+  @@index([eliminadoEn])
+  @@map("perfiles_cliente")
+}
+
+// ============================================================================
+// PERFIL INVITADO (Guest Checkout)
+// ============================================================================
+
+model PerfilInvitado {
+  id                  String    @id @default(cuid())
+
+  // Contacto
+  email               String?   @db.VarChar(255)
+  telefono            String?   @db.VarChar(20)
+  emailNormalizado    String?   @db.VarChar(255)
+  telefonoNormalizado String?   @db.VarChar(20)
+
+  // Info Invitado
+  nombre              String?   @db.VarChar(100)
+  apellido            String?   @db.VarChar(100)
+
+  // Coincidencia Implicita
+  usuarioCoincideId   String?   @db.VarChar(30)
+  confianzaCoincide   Float?
+  coincidioEn         DateTime?
+
+  // Fusion Explicita
+  fusionado           Boolean   @default(false)
+  fusionadoAUsuarioId String?   @db.VarChar(30)
+  fusionadoEn         DateTime?
+
+  // GDPR
+  consentimiento      Boolean   @default(false)
+  textoConsentimiento String?   @db.Text
+  fechaConsentimiento DateTime?
+  expiraEn            DateTime?
+
+  // Auditoria
+  creadoEn            DateTime  @default(now())
+  actualizadoEn       DateTime  @updatedAt
+
+  // Relaciones
+  pedidos             Pedido[]
+
+  @@index([email])
+  @@index([telefono])
+  @@index([emailNormalizado])
+  @@index([telefonoNormalizado])
+  @@index([usuarioCoincideId])
+  @@index([fusionado])
+  @@index([expiraEn])
+  @@map("perfiles_invitado")
+}
+
+// ============================================================================
+// CATEGORIA
+// ============================================================================
+
+model Categoria {
+  id                  String      @id @default(cuid())
+  negocioId           String
+  padreId             String?
+
+  // Info Basica
+  nombre              String      @db.VarChar(100)
+  slug                String      @db.VarChar(100)
+  descripcion         String?     @db.Text
+  urlImagen           String?     @db.VarChar(500)
+
+  // Jerarquia (Path Materializado)
+  ruta                String      @db.VarChar(1000)
+  profundidad         Int         @default(0)
+
+  // Visualizacion
+  orden               Int         @default(0)
+  visible             Boolean     @default(true)
+
+  // SEO
+  metaTitulo          String?     @db.VarChar(255)
+  metaDescripcion     String?     @db.VarChar(500)
+
+  // Auditoria
+  creadoEn            DateTime    @default(now())
+  actualizadoEn       DateTime    @updatedAt
+  eliminadoEn         DateTime?
+
+  // Relaciones
+  negocio             Negocio     @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  padre               Categoria?  @relation("JerarquiaCategoria", fields: [padreId], references: [id])
+  hijos               Categoria[] @relation("JerarquiaCategoria")
+  productos           Producto[]
+
+  @@unique([negocioId, slug])
+  @@unique([negocioId, padreId, nombre])
+  @@index([negocioId, padreId])
+  @@index([negocioId, ruta(length: 255)])
+  @@index([eliminadoEn])
+  @@map("categorias")
+}
+
+// ============================================================================
+// PRODUCTO
+// ============================================================================
+
+model Producto {
+  id                  String    @id @default(cuid())
+  negocioId           String
+  categoriaId         String?
+
+  // Info Basica
+  nombre              String    @db.VarChar(255)
+  slug                String    @db.VarChar(255)
+  descripcion         String?   @db.Text
+  descripcionCorta    String?   @db.VarChar(500)
+
+  // Marca/Fabricante
+  marca               String?   @db.VarChar(100)
+  fabricante          String?   @db.VarChar(100)
+  modelo              String?   @db.VarChar(100)
+
+  // Atributos Fisicos
+  pesoGramos          Int?
+  largoCm             Float?
+  anchoCm             Float?
+  altoCm              Float?
+
+  // Flags
+  activo              Boolean   @default(true)
+  destacado           Boolean   @default(false)
+
+  // SEO
+  metaTitulo          String?   @db.VarChar(255)
+  metaDescripcion     String?   @db.VarChar(500)
+
+  // Auditoria
+  creadoEn            DateTime  @default(now())
+  actualizadoEn       DateTime  @updatedAt
+  eliminadoEn         DateTime?
+
+  // Relaciones
+  negocio             Negocio           @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  categoria           Categoria?        @relation(fields: [categoriaId], references: [id])
+  imagenes            ImagenProducto[]
+  variantes           VarianteProducto[]
+
+  @@unique([negocioId, slug])
+  @@index([negocioId, categoriaId])
+  @@index([negocioId, activo])
+  @@index([negocioId, destacado])
+  @@index([eliminadoEn])
+  @@map("productos")
+}
+
+// ============================================================================
+// IMAGENES DE PRODUCTO
+// ============================================================================
+
+model ImagenProducto {
+  id              String   @id @default(cuid())
+  productoId      String
+  urlImagen       String   @db.VarChar(500)
+  textoAlt        String?  @db.VarChar(255)
+  orden           Int      @default(0)
+  esPrincipal     Boolean  @default(false)
+
+  // Auditoria
+  creadoEn        DateTime @default(now())
+  actualizadoEn   DateTime @updatedAt
+
+  // Relaciones
+  producto        Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  @@index([productoId, orden])
+  @@index([productoId, esPrincipal])
+  @@map("imagenes_producto")
+}
+
+// ============================================================================
+// VARIANTE DE PRODUCTO
+// ============================================================================
+
+model VarianteProducto {
+  id                  String    @id @default(cuid())
+  productoId          String
+
+  // Identificacion
+  sku                 String    @db.VarChar(100)
+  codigoBarras        String?   @db.VarChar(100)
+  skuProveedor        String?   @db.VarChar(100)
+
+  // Atributos de Variante
+  nombre              String?   @db.VarChar(255)
+  atributos           Json?
+
+  // Precios (en centavos)
+  costoEnCents        Int       @default(0)
+  precioEnCents       Int
+  precioComparaEnCents Int?
+  moneda              Moneda    @default(CRC)
+
+  // Inventario
+  stock               Int       @default(0)
+  stockMinimo         Int       @default(5)
+  stockReservado      Int       @default(0)
+
+  // Disponibilidad
+  permitirPedidoSinStock Boolean @default(false)
+  controlarInventario Boolean   @default(true)
+
+  // Flags
+  esPredeterminado    Boolean   @default(false)
+  activo              Boolean   @default(true)
+
+  // Auditoria
+  creadoEn            DateTime  @default(now())
+  actualizadoEn       DateTime  @updatedAt
+  eliminadoEn         DateTime?
+
+  // Relaciones
+  producto            Producto           @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  reservasStock       ReservaStock[]
+  solicitudesEspera   SolicitudEspera[]
+  itemsPedido         ItemPedido[]
+
+  @@unique([productoId, sku])
+  @@index([sku])
+  @@index([codigoBarras])
+  @@index([productoId, esPredeterminado])
+  @@index([productoId, activo])
+  @@index([eliminadoEn])
+  @@map("variantes_producto")
+}
+
+// ============================================================================
+// RESERVA DE STOCK
+// ============================================================================
+
+model ReservaStock {
+  id                  String        @id @default(cuid())
+  varianteId          String
+  pedidoId            String
+
+  // Detalles
+  cantidad            Int
+  estado              EstadoReserva @default(ACTIVA)
+
+  // TTL
+  expiraEn            DateTime
+
+  // Resolucion
+  liberadaEn          DateTime?
+  confirmadaEn        DateTime?
+  razonLiberacion     String?       @db.VarChar(100)
+
+  // Auditoria
+  creadoEn            DateTime      @default(now())
+  actualizadoEn       DateTime      @updatedAt
+
+  // Relaciones
+  variante            VarianteProducto @relation(fields: [varianteId], references: [id], onDelete: Cascade)
+  pedido              Pedido           @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+
+  @@index([varianteId, estado])
+  @@index([pedidoId])
+  @@index([estado, expiraEn])
+  @@map("reservas_stock")
+}
+
+// ============================================================================
+// LISTA DE ESPERA
+// ============================================================================
+
+model SolicitudEspera {
+  id                  String            @id @default(cuid())
+  varianteId          String
+  usuarioId           String?
+
+  // Contacto
+  email               String            @db.VarChar(255)
+  telefono            String?           @db.VarChar(20)
+  nombre              String?           @db.VarChar(100)
+
+  // Detalles
+  cantidadSolicitada  Int               @default(1)
+  estado              EstadoListaEspera @default(ESPERANDO)
+
+  // Notificaciones
+  notificadoEn        DateTime?
+  cantidadNotificaciones Int            @default(0)
+  errorNotificacion   String?           @db.VarChar(500)
+
+  // Conversion
+  pedidoConvertidoId  String?           @db.VarChar(30)
+  convertidoEn        DateTime?
+
+  // Expiracion
+  expiraEn            DateTime?
+
+  // Auditoria
+  creadoEn            DateTime          @default(now())
+  actualizadoEn       DateTime          @updatedAt
+
+  // Relaciones
+  variante            VarianteProducto  @relation(fields: [varianteId], references: [id], onDelete: Cascade)
+  usuario             Usuario?          @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@index([varianteId, estado])
+  @@index([usuarioId])
+  @@index([email])
+  @@index([estado, expiraEn])
+  @@map("solicitudes_espera")
+}
+
+// ============================================================================
+// PEDIDO
+// ============================================================================
+
+model Pedido {
+  id                  String        @id @default(cuid())
+  negocioId           String
+  numeroPedido        String        @db.VarChar(50)
+
+  // Identidad del Cliente
+  perfilClienteId     String?
+  perfilInvitadoId    String?
+
+  // Estado
+  estado              EstadoPedido  @default(BORRADOR)
+  estadoPago          EstadoPago    @default(PENDIENTE)
+
+  // Flujo de Aprobacion
+  requiereAprobacion  Boolean       @default(false)
+  aprobacionExpiraEn  DateTime?
+  aprobadoEn          DateTime?
+  aprobadoPor         String?       @db.VarChar(30)
+  rechazadoEn         DateTime?
+  rechazadoPor        String?       @db.VarChar(30)
+  razonRechazo        String?       @db.VarChar(500)
+
+  // Evaluacion de Riesgo
+  puntuacionReputacion Int?
+  pedidoAltoRiesgo    Boolean       @default(false)
+
+  // Precios (en centavos)
+  subtotalCents       Int           @default(0)
+  descuentoCents      Int           @default(0)
+  impuestoCents       Int           @default(0)
+  envioCents          Int           @default(0)
+  totalCents          Int           @default(0)
+  moneda              Moneda        @default(CRC)
+
+  // Pago
+  metodoPago          MetodoPago?
+  pagadoEn            DateTime?
+  montoPagadoCents    Int           @default(0)
+  referenciaPago      String?       @db.VarChar(255)
+
+  // Envio
+  direccionEnvioId    String?
+  direccionFacturaId  String?
+  numeroRastreo       String?       @db.VarChar(100)
+  enviadoEn           DateTime?
+  entregadoEn         DateTime?
+
+  // Notas
+  notasCliente        String?       @db.Text
+  notasInternas       String?       @db.Text
+
+  // Fechas Clave
+  realizadoEn         DateTime?
+  completadoEn        DateTime?
+  canceladoEn         DateTime?
+  canceladoPor        String?       @db.VarChar(30)
+  razonCancelacion    String?       @db.VarChar(500)
+
+  // Auditoria
+  creadoEn            DateTime      @default(now())
+  actualizadoEn       DateTime      @updatedAt
+  eliminadoEn         DateTime?
+
+  // Relaciones
+  negocio             Negocio          @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  perfilCliente       PerfilCliente?   @relation(fields: [perfilClienteId], references: [id])
+  perfilInvitado      PerfilInvitado?  @relation(fields: [perfilInvitadoId], references: [id])
+  direccionEnvio      Direccion?       @relation("DireccionEnvio", fields: [direccionEnvioId], references: [id])
+  direccionFactura    Direccion?       @relation("DireccionFactura", fields: [direccionFacturaId], references: [id])
+  items               ItemPedido[]
+  reservasStock       ReservaStock[]
+
+  @@unique([negocioId, numeroPedido])
+  @@index([negocioId, estado])
+  @@index([negocioId, creadoEn])
+  @@index([perfilClienteId])
+  @@index([perfilInvitadoId])
+  @@index([estado, aprobacionExpiraEn])
+  @@index([estadoPago])
+  @@index([eliminadoEn])
+  @@map("pedidos")
+}
+
+// ============================================================================
+// ITEM DE PEDIDO
+// ============================================================================
+
+model ItemPedido {
+  id                  String    @id @default(cuid())
+  pedidoId            String
+
+  // Referencia al Item
+  varianteId          String?
+
+  // Snapshot al Momento del Pedido
+  nombre              String    @db.VarChar(255)
+  sku                 String?   @db.VarChar(100)
+  urlImagen           String?   @db.VarChar(500)
+
+  // Cantidad y Precio
+  cantidad            Int
+  precioUnitarioCents Int
+  descuentoCents      Int       @default(0)
+  impuestoCents       Int       @default(0)
+  totalCents          Int
+
+  // Notas
+  notas               String?   @db.Text
+
+  // Auditoria
+  creadoEn            DateTime  @default(now())
+  actualizadoEn       DateTime  @updatedAt
+
+  // Relaciones
+  pedido              Pedido            @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  variante            VarianteProducto? @relation(fields: [varianteId], references: [id])
+
+  @@index([pedidoId])
+  @@index([varianteId])
+  @@map("items_pedido")
+}
+
+// ============================================================================
+// DIRECCION
+// ============================================================================
+
+model Direccion {
+  id                  String    @id @default(cuid())
+  negocioId           String
+
+  // Etiqueta
+  etiqueta            String?   @db.VarChar(50)
+
+  // Direccion Costa Rica
+  provincia           String    @db.VarChar(50)
+  canton              String    @db.VarChar(100)
+  distrito            String    @db.VarChar(100)
+  direccionCalle      String    @db.VarChar(500)
+  infoAdicional       String?   @db.VarChar(500)
+  codigoPostal        String?   @db.VarChar(20)
+
+  // Coordenadas GPS
+  latitud             Float?
+  longitud            Float?
+
+  // Contacto
+  nombreContacto      String?   @db.VarChar(100)
+  telefonoContacto    String?   @db.VarChar(20)
+
+  // Flags
+  esPredeterminada    Boolean   @default(false)
+
+  // Auditoria
+  creadoEn            DateTime  @default(now())
+  actualizadoEn       DateTime  @updatedAt
+  eliminadoEn         DateTime?
+
+  // Relaciones
+  negocio             Negocio   @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  pedidosEnvio        Pedido[]  @relation("DireccionEnvio")
+  pedidosFactura      Pedido[]  @relation("DireccionFactura")
+
+  @@index([negocioId])
+  @@index([negocioId, esPredeterminada])
+  @@index([eliminadoEn])
+  @@map("direcciones")
+}
+
+// ============================================================================
+// CONTADOR DE PEDIDOS
+// ============================================================================
+
+model ContadorPedidos {
+  negocioId           String    @id
+  ultimoNumero        Int       @default(0)
+
+  // Relaciones
+  negocio             Negocio   @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+
+  @@map("contadores_pedido")
+}
