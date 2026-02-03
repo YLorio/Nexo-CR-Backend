@@ -3,7 +3,11 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateTenantDto } from '../infrastructure/http/dto/create-tenant.dto';
 import { ListTenantsQueryDto, PaginatedTenantsDto } from '../infrastructure/http/dto/list-tenants.dto';
+<<<<<<< HEAD
+import { RolUsuario, TipoPlan, EstadoUsuario, Moneda } from '@prisma/client';
+=======
 import { UserRole, PlanType, UserStatus, Currency } from '@prisma/client';
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 
 @Injectable()
 export class PlatformService {
@@ -11,7 +15,11 @@ export class PlatformService {
 
   async createTenant(dto: CreateTenantDto) {
     // Verificar que el slug no exista
+<<<<<<< HEAD
+    const existingTenant = await this.prisma.negocio.findUnique({
+=======
     const existingTenant = await this.prisma.tenant.findUnique({
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
       where: { slug: dto.slug },
     });
 
@@ -20,7 +28,11 @@ export class PlatformService {
     }
 
     // Verificar que el email del owner no exista
+<<<<<<< HEAD
+    const existingUser = await this.prisma.usuario.findUnique({
+=======
     const existingUser = await this.prisma.user.findUnique({
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
       where: { email: dto.ownerEmail.toLowerCase() },
     });
 
@@ -29,6 +41,61 @@ export class PlatformService {
     }
 
     // Hash de la contraseña
+<<<<<<< HEAD
+    const contrasenaHash = await bcrypt.hash(dto.ownerPassword, 10);
+
+    // Mapear currency y planType a español
+    const monedaMap: Record<string, Moneda> = {
+      'CRC': Moneda.CRC,
+      'USD': Moneda.USD,
+    };
+    const tipoPlanMap: Record<string, TipoPlan> = {
+      'FREE': TipoPlan.GRATIS,
+      'BASIC': TipoPlan.BASICO,
+      'PREMIUM': TipoPlan.PREMIUM,
+    };
+
+    // Crear negocio y owner en una transacción
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Crear el negocio
+      const negocio = await tx.negocio.create({
+        data: {
+          nombre: dto.name,
+          slug: dto.slug,
+          whatsapp: dto.whatsappNumber,
+          email: dto.email,
+          colorPrimario: dto.primaryColor || '#6366f1',
+          colorSecundario: dto.accentColor || '#f59e0b',
+          logo: dto.logoUrl,
+          moneda: monedaMap[dto.currency || 'CRC'] || Moneda.CRC,
+          tipoPlan: tipoPlanMap[dto.planType || 'FREE'] || TipoPlan.GRATIS,
+          activo: true,
+        },
+      });
+
+      // Crear el owner con negocioId directo
+      const owner = await tx.usuario.create({
+        data: {
+          email: dto.ownerEmail.toLowerCase(),
+          contrasenaHash,
+          nombre: dto.ownerName.split(' ')[0],
+          apellido: dto.ownerName.split(' ').slice(1).join(' ') || '',
+          rol: RolUsuario.DUENO_NEGOCIO,
+          estado: EstadoUsuario.ACTIVO,
+          negocioId: negocio.id,
+        },
+      });
+
+      // Crear contador de pedidos para el negocio
+      await tx.contadorPedidos.create({
+        data: {
+          negocioId: negocio.id,
+          ultimoNumero: 0,
+        },
+      });
+
+      return { negocio, owner };
+=======
     const passwordHash = await bcrypt.hash(dto.ownerPassword, 10);
 
     // Crear tenant y owner en una transacción
@@ -79,10 +146,32 @@ export class PlatformService {
       });
 
       return { tenant, owner };
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
     });
 
     return {
       tenant: {
+<<<<<<< HEAD
+        id: result.negocio.id,
+        name: result.negocio.nombre,
+        slug: result.negocio.slug,
+        whatsappNumber: result.negocio.whatsapp,
+        email: result.negocio.email,
+        primaryColor: result.negocio.colorPrimario,
+        accentColor: result.negocio.colorSecundario,
+        logoUrl: result.negocio.logo,
+        currency: result.negocio.moneda,
+        planType: result.negocio.tipoPlan,
+        isActive: result.negocio.activo,
+        createdAt: result.negocio.creadoEn,
+      },
+      owner: {
+        id: result.owner.id,
+        name: (result.owner.nombre || "") + " " + (result.owner.apellido || "").trim(),
+        email: result.owner.email,
+      },
+      storeUrl: `/${result.negocio.slug}`,
+=======
         id: result.tenant.id,
         name: result.tenant.name,
         slug: result.tenant.slug,
@@ -102,6 +191,7 @@ export class PlatformService {
         email: result.owner.email,
       },
       storeUrl: `/${result.tenant.slug}`,
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
     };
   }
 
@@ -109,17 +199,52 @@ export class PlatformService {
     const { page = 1, limit = 10, search, isActive, planType } = query;
     const skip = (page - 1) * limit;
 
+<<<<<<< HEAD
+    // Mapear planType a español
+    const tipoPlanMap: Record<string, TipoPlan> = {
+      'FREE': TipoPlan.GRATIS,
+      'BASIC': TipoPlan.BASICO,
+      'PREMIUM': TipoPlan.PREMIUM,
+    };
+
+=======
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
     // Construir filtros
     const where: any = {};
 
     if (search) {
       where.OR = [
+<<<<<<< HEAD
+        { nombre: { contains: search } },
+=======
         { name: { contains: search } },
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
         { slug: { contains: search } },
       ];
     }
 
     if (isActive !== undefined) {
+<<<<<<< HEAD
+      where.activo = isActive;
+    }
+
+    if (planType) {
+      where.tipoPlan = tipoPlanMap[planType] || planType;
+    }
+
+    // Ejecutar consultas en paralelo
+    const [negocios, total] = await Promise.all([
+      this.prisma.negocio.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { creadoEn: 'desc' },
+        include: {
+          _count: {
+            select: {
+              productos: true,
+              pedidos: true,
+=======
       where.isActive = isActive;
     }
 
@@ -154,10 +279,67 @@ export class PlatformService {
               inventoryItems: true,
               serviceDefinitions: true,
               orders: true,
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
             },
           },
         },
       }),
+<<<<<<< HEAD
+      this.prisma.negocio.count({ where }),
+    ]);
+
+    // Obtener owners por separado (usuarios con negocioId)
+    const negocioIds = negocios.map(t => t.id);
+    const owners = await this.prisma.usuario.findMany({
+      where: {
+        negocioId: { in: negocioIds },
+        rol: RolUsuario.DUENO_NEGOCIO,
+      },
+      select: {
+        id: true,
+        nombre: true,
+        apellido: true,
+        email: true,
+        negocioId: true,
+      },
+    });
+
+    const ownersByNegocio = owners.reduce((acc, owner) => {
+      if (owner.negocioId) {
+        acc[owner.negocioId] = owner;
+      }
+      return acc;
+    }, {} as Record<string, typeof owners[0]>);
+
+    return {
+      data: negocios.map((negocio) => {
+        const owner = ownersByNegocio[negocio.id];
+        return {
+          id: negocio.id,
+          name: negocio.nombre,
+          slug: negocio.slug,
+          whatsappNumber: negocio.whatsapp,
+          email: negocio.email,
+          logoUrl: negocio.logo,
+          primaryColor: negocio.colorPrimario,
+          accentColor: negocio.colorSecundario,
+          currency: negocio.moneda,
+          planType: negocio.tipoPlan,
+          isActive: negocio.activo,
+          createdAt: negocio.creadoEn,
+          owner: owner ? {
+            id: owner.id,
+            name: (owner.nombre || "") + " " + (owner.apellido || "").trim(),
+            email: owner.email,
+          } : undefined,
+          _count: {
+            inventoryItems: negocio._count.productos,
+            orders: negocio._count.pedidos,
+            products: negocio._count.productos,
+          },
+        };
+      }),
+=======
       this.prisma.tenant.count({ where }),
     ]);
 
@@ -187,6 +369,7 @@ export class PlatformService {
           products: tenant._count.inventoryItems + tenant._count.serviceDefinitions,
         },
       })),
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
       meta: {
         total,
         page,
@@ -197,6 +380,16 @@ export class PlatformService {
   }
 
   async getTenantById(id: string) {
+<<<<<<< HEAD
+    const negocio = await this.prisma.negocio.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            productos: true,
+            pedidos: true,
+            categorias: true,
+=======
     const tenant = await this.prisma.tenant.findUnique({
       where: { id },
       include: {
@@ -222,11 +415,44 @@ export class PlatformService {
             serviceDefinitions: true,
             orders: true,
             categories: true,
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
           },
         },
       },
     });
 
+<<<<<<< HEAD
+    if (!negocio) {
+      throw new NotFoundException('Tenant no encontrado');
+    }
+
+    // Buscar owner
+    const owner = await this.prisma.usuario.findFirst({
+      where: {
+        negocioId: id,
+        rol: RolUsuario.DUENO_NEGOCIO,
+      },
+      select: {
+        id: true,
+        nombre: true,
+        apellido: true,
+        email: true,
+        estado: true,
+        creadoEn: true,
+        ultimoLoginEn: true,
+      },
+    });
+
+    return {
+      ...negocio,
+      owner: owner ? {
+        id: owner.id,
+        name: (owner.nombre || "") + " " + (owner.apellido || "").trim(),
+        email: owner.email,
+        isActive: owner.estado === EstadoUsuario.ACTIVO,
+        createdAt: owner.creadoEn,
+        lastLoginAt: owner.ultimoLoginEn,
+=======
     if (!tenant) {
       throw new NotFoundException('Tenant no encontrado');
     }
@@ -240,11 +466,25 @@ export class PlatformService {
         isActive: tenant.staff[0].user.status === UserStatus.ACTIVE,
         createdAt: tenant.staff[0].user.createdAt,
         lastLoginAt: tenant.staff[0].user.lastLoginAt,
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
       } : null,
     };
   }
 
   async toggleTenantStatus(id: string, isActive: boolean) {
+<<<<<<< HEAD
+    const negocio = await this.prisma.negocio.findUnique({
+      where: { id },
+    });
+
+    if (!negocio) {
+      throw new NotFoundException('Tenant no encontrado');
+    }
+
+    const updated = await this.prisma.negocio.update({
+      where: { id },
+      data: { activo: isActive },
+=======
     const tenant = await this.prisma.tenant.findUnique({
       where: { id },
     });
@@ -256,12 +496,18 @@ export class PlatformService {
     const updated = await this.prisma.tenant.update({
       where: { id },
       data: { isActive },
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
     });
 
     return {
       id: updated.id,
+<<<<<<< HEAD
+      name: updated.nombre,
+      isActive: updated.activo,
+=======
       name: updated.name,
       isActive: updated.isActive,
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
     };
   }
 
@@ -273,19 +519,32 @@ export class PlatformService {
       totalOrders,
       planCounts,
     ] = await Promise.all([
+<<<<<<< HEAD
+      this.prisma.negocio.count(),
+      this.prisma.negocio.count({ where: { activo: true } }),
+      this.prisma.usuario.count({ where: { rol: RolUsuario.DUENO_NEGOCIO } }),
+      this.prisma.pedido.count(),
+      this.prisma.negocio.groupBy({
+        by: ['tipoPlan'],
+=======
       this.prisma.tenant.count(),
       this.prisma.tenant.count({ where: { isActive: true } }),
       this.prisma.user.count({ where: { role: UserRole.TENANT_OWNER } }),
       this.prisma.order.count(),
       this.prisma.tenant.groupBy({
         by: ['planType'],
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
         _count: true,
       }),
     ]);
 
     const planStats = planCounts.reduce(
       (acc, item) => {
+<<<<<<< HEAD
+        acc[item.tipoPlan] = item._count;
+=======
         acc[item.planType] = item._count;
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
         return acc;
       },
       {} as Record<string, number>,
@@ -300,8 +559,13 @@ export class PlatformService {
       users: totalUsers,
       orders: totalOrders,
       planDistribution: {
+<<<<<<< HEAD
+        FREE: planStats.GRATIS || 0,
+        BASIC: planStats.BASICO || 0,
+=======
         FREE: planStats.FREE || 0,
         BASIC: planStats.BASIC || 0,
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
         PREMIUM: planStats.PREMIUM || 0,
       },
     };

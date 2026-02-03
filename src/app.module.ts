@@ -9,7 +9,10 @@ import { PrismaModule } from './prisma/prisma.module';
 import { StorageModule } from './modules/storage';
 
 // Módulos de dominio
+<<<<<<< HEAD
+=======
 import { BookingModule } from './modules/booking/booking.module';
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 import { OrdersModule } from './modules/orders/orders.module';
 import { TenantModule } from './modules/tenant/tenant.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
@@ -58,7 +61,10 @@ import { DomainExceptionFilter } from './modules/shared/infrastructure/filters';
     AuthModule,
     PlatformModule,
     AdminModule,      // Tenant Dashboard (TENANT_OWNER)
+<<<<<<< HEAD
+=======
     BookingModule,
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
     OrdersModule,
     TenantModule,
     CatalogModule,

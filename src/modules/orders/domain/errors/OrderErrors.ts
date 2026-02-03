@@ -19,6 +19,8 @@ export class InsufficientStockError extends DomainError {
 }
 
 /**
+<<<<<<< HEAD
+=======
  * Error cuando el slot de cita no está disponible
  */
 export class SlotNotAvailableError extends DomainError {
@@ -34,6 +36,7 @@ export class SlotNotAvailableError extends DomainError {
 }
 
 /**
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
  * Error cuando el producto no existe
  */
 export class ProductNotFoundError extends DomainError {

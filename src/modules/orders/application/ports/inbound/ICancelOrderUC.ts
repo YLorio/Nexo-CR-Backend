@@ -15,7 +15,10 @@ export interface CancelledOrderDTO {
   cancelledAt: Date;
   // Información de reversión
   stockRestored: StockRestoredItem[];
+<<<<<<< HEAD
+=======
   slotsReleased: SlotReleasedItem[];
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 }
 
 export interface StockRestoredItem {
@@ -24,6 +27,12 @@ export interface StockRestoredItem {
   quantityRestored: number;
 }
 
+<<<<<<< HEAD
+export interface ICancelOrderUC {
+  /**
+   * Cancela una orden existente
+   * - Revierte el stock de productos
+=======
 export interface SlotReleasedItem {
   productId: string;
   serviceName: string;
@@ -36,6 +45,7 @@ export interface ICancelOrderUC {
    * Cancela una orden existente
    * - Revierte el stock de productos físicos
    * - Libera los slots de servicios (automático por cambio de estado)
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
    * - Marca la orden como CANCELLED
    *
    * @throws OrderNotFoundError si la orden no existe

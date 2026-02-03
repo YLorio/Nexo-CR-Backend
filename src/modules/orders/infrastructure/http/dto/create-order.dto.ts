@@ -1,6 +1,9 @@
 import {
   IsString,
+<<<<<<< HEAD
+=======
   IsUUID,
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
   IsArray,
   IsNotEmpty,
   IsOptional,
@@ -8,22 +11,44 @@ import {
   IsPositive,
   ValidateNested,
   IsEmail,
+<<<<<<< HEAD
+  Matches,
+  ArrayMinSize,
+=======
   IsDateString,
   Matches,
   ArrayMinSize,
   ValidateIf,
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
   IsEnum,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+<<<<<<< HEAD
+
+// Enum en inglés para la API (el servicio lo traduce a español para la BD)
+export enum PaymentMethodApi {
+  SINPE_MOVIL = 'SINPE_MOVIL',
+  CASH = 'CASH',
+  CARD = 'CARD',
+  TRANSFER = 'TRANSFER',
+  OTHER = 'OTHER',
+}
+=======
 import { PaymentMethod } from '@prisma/client';
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 
 /**
  * DTO para un item del pedido
  */
 export class CreateOrderItemDto {
+<<<<<<< HEAD
+  @ApiProperty({ description: 'ID del producto' })
+  @IsString()
+=======
   @ApiProperty({ description: 'ID del producto o servicio' })
   @IsUUID('4', { message: 'productId debe ser un UUID válido' })
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
   @IsNotEmpty({ message: 'productId es requerido' })
   productId: string;
 
@@ -31,6 +56,8 @@ export class CreateOrderItemDto {
   @IsInt({ message: 'quantity debe ser un número entero' })
   @IsPositive({ message: 'quantity debe ser mayor a 0' })
   quantity: number;
+<<<<<<< HEAD
+=======
 
   @ApiPropertyOptional({
     description: 'Fecha de la cita (solo para servicios)',
@@ -49,6 +76,7 @@ export class CreateOrderItemDto {
     message: 'appointmentTime debe tener formato HH:mm (24 horas)',
   })
   appointmentTime?: string;
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 }
 
 /**
@@ -56,7 +84,11 @@ export class CreateOrderItemDto {
  */
 export class CreateOrderDto {
   @ApiProperty({ description: 'ID del tenant' })
+<<<<<<< HEAD
+  @IsString()
+=======
   @IsUUID('4', { message: 'tenantId debe ser un UUID válido' })
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
   @IsNotEmpty({ message: 'tenantId es requerido' })
   tenantId: string;
 
@@ -85,12 +117,21 @@ export class CreateOrderDto {
 
   @ApiPropertyOptional({
     description: 'Método de pago',
+<<<<<<< HEAD
+    enum: PaymentMethodApi,
+    default: PaymentMethodApi.SINPE_MOVIL,
+  })
+  @IsOptional()
+  @IsEnum(PaymentMethodApi, { message: 'paymentMethod debe ser SINPE_MOVIL, CASH, CARD, TRANSFER u OTHER' })
+  paymentMethod?: PaymentMethodApi;
+=======
     enum: PaymentMethod,
     default: PaymentMethod.SINPE_MOVIL,
   })
   @IsOptional()
   @IsEnum(PaymentMethod, { message: 'paymentMethod debe ser SINPE_MOVIL, CASH, CARD, TRANSFER u OTHER' })
   paymentMethod?: PaymentMethod;
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 
   @ApiProperty({
     description: 'Lista de items del pedido',
@@ -117,9 +158,12 @@ export class CreatedOrderItemResponseDto {
   productName: string;
 
   @ApiProperty()
+<<<<<<< HEAD
+=======
   isService: boolean;
 
   @ApiProperty()
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
   unitPriceInCents: number;
 
   @ApiProperty()
@@ -127,6 +171,8 @@ export class CreatedOrderItemResponseDto {
 
   @ApiProperty()
   subtotalInCents: number;
+<<<<<<< HEAD
+=======
 
   @ApiPropertyOptional()
   appointmentDate: string | null;
@@ -136,6 +182,7 @@ export class CreatedOrderItemResponseDto {
 
   @ApiPropertyOptional()
   durationMinutes: number | null;
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 }
 
 /**
@@ -163,10 +210,17 @@ export class CreatedOrderResponseDto {
   @ApiPropertyOptional()
   customerEmail: string | null;
 
+<<<<<<< HEAD
+  @ApiProperty({ enum: ['AWAITING_PAYMENT', 'AWAITING_APPROVAL', 'APPROVED', 'PROCESSING', 'READY', 'SHIPPED', 'COMPLETED', 'CANCELLED'] })
+  status: string;
+
+  @ApiProperty({ enum: ['SINPE_MOVIL', 'CASH', 'CARD', 'TRANSFER', 'OTHER'], default: 'SINPE_MOVIL' })
+=======
   @ApiProperty({ enum: ['PENDING_PAYMENT', 'PAID', 'COMPLETED', 'CANCELLED'] })
   status: string;
 
   @ApiProperty({ enum: ['SINPE', 'CASH'], default: 'SINPE' })
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
   paymentMethod: string;
 
   @ApiProperty()

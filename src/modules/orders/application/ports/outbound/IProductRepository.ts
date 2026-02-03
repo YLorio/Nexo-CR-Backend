@@ -6,9 +6,13 @@ export interface ProductInfo {
   tenantId: string;
   name: string;
   priceInCents: number;
+<<<<<<< HEAD
+  stock: number;
+=======
   isService: boolean;
   stock: number;
   durationMinutes: number | null;
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
   isActive: boolean;
 }
 
@@ -24,7 +28,11 @@ export interface IProductRepository {
   findByIds(productIds: string[]): Promise<ProductInfo[]>;
 
   /**
+<<<<<<< HEAD
+   * Decrementa el stock de un producto
+=======
    * Decrementa el stock de un producto (para productos físicos)
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
    * Se ejecuta dentro de una transacción
    */
   decrementStock(productId: string, quantity: number): Promise<void>;

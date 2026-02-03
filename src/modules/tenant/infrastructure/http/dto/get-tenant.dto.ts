@@ -24,6 +24,16 @@ export class TenantResponseDto {
   slug: string;
 
   @ApiProperty({
+<<<<<<< HEAD
+    description: 'Tagline o descripción corta del negocio',
+    example: 'Explora nuestro catálogo y encuentra lo que necesitas.',
+    nullable: true,
+  })
+  tagline: string | null;
+
+  @ApiProperty({
+=======
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
     description: 'URL del logo del negocio',
     example: 'https://storage.example.com/logos/barberia.png',
     nullable: true,

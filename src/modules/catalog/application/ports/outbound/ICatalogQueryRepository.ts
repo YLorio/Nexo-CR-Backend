@@ -16,9 +16,14 @@ export interface ProductInfo {
   name: string;
   description: string | null;
   imageUrl: string | null;
+<<<<<<< HEAD
+  imageUrls: string[];
+  priceInCents: number;
+=======
   priceInCents: number;
   isService: boolean;
   durationMinutes: number | null;
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
   stock: number;
   categoryId: string | null;
   categoryName: string | null;
@@ -28,8 +33,11 @@ export interface ProductInfo {
 export interface CatalogFilters {
   tenantId: string;
   categoryId?: string;
+<<<<<<< HEAD
+=======
   onlyServices?: boolean;
   onlyProducts?: boolean;
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 }
 
 export interface ICatalogQueryRepository {

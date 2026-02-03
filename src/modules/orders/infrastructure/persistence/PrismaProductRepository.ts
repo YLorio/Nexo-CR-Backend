@@ -4,7 +4,11 @@ import { BaseRepository } from './BaseRepository';
 
 /**
  * Implementación Prisma del repositorio de productos para el módulo Orders
+<<<<<<< HEAD
+ * Usa Producto + VarianteProducto para productos
+=======
  * Usa InventoryItem + ProductVariant para productos y ServiceDefinition para servicios
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
  */
 export class PrismaProductRepository extends BaseRepository implements IProductRepository {
   constructor(prisma: PrismaClient) {
@@ -14,6 +18,24 @@ export class PrismaProductRepository extends BaseRepository implements IProductR
   async findById(productId: string): Promise<ProductInfo | null> {
     const client = this.getClient();
 
+<<<<<<< HEAD
+    // Buscar como variante de producto
+    const variante = await client.varianteProducto.findUnique({
+      where: { id: productId },
+      include: {
+        producto: true,
+      },
+    });
+
+    if (variante && !variante.eliminadoEn && variante.producto && !variante.producto.eliminadoEn) {
+      return {
+        id: variante.id,
+        tenantId: variante.producto.negocioId,
+        name: variante.producto.nombre,
+        priceInCents: variante.precioEnCents,
+        stock: variante.stock,
+        isActive: variante.activo && variante.producto.activo,
+=======
     // Primero intentar como servicio
     const service = await client.serviceDefinition.findUnique({
       where: { id: productId },
@@ -50,6 +72,7 @@ export class PrismaProductRepository extends BaseRepository implements IProductR
         stock: variant.stock,
         durationMinutes: null,
         isActive: variant.isActive && variant.inventoryItem.isActive,
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
       };
     }
 
@@ -72,8 +95,12 @@ export class PrismaProductRepository extends BaseRepository implements IProductR
   async decrementStock(productId: string, quantity: number): Promise<void> {
     const client = this.getClient();
 
+<<<<<<< HEAD
+    await client.varianteProducto.update({
+=======
     // Solo aplica a variantes de productos (no servicios)
     await client.productVariant.update({
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
       where: { id: productId },
       data: {
         stock: {
@@ -86,7 +113,11 @@ export class PrismaProductRepository extends BaseRepository implements IProductR
   async incrementStock(productId: string, quantity: number): Promise<void> {
     const client = this.getClient();
 
+<<<<<<< HEAD
+    await client.varianteProducto.update({
+=======
     await client.productVariant.update({
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
       where: { id: productId },
       data: {
         stock: {

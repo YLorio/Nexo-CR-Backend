@@ -18,7 +18,11 @@ function formatPrice(priceInCents: number): string {
 
 /**
  * Controlador para endpoints del Catálogo
+<<<<<<< HEAD
+ * Permite obtener productos de un tenant
+=======
  * Permite obtener productos y servicios de un tenant
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
  */
 @ApiTags('Catalog')
 @Controller('api/v1/catalog')
@@ -29,14 +33,24 @@ export class CatalogController {
   ) {}
 
   /**
+<<<<<<< HEAD
+   * Obtiene el catálogo de productos
+=======
    * Obtiene el catálogo de productos y servicios
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
    * Opcionalmente filtrado por categoría
    */
   @Get()
   @ApiOperation({
+<<<<<<< HEAD
+    summary: 'Obtener catálogo de productos',
+    description:
+      'Retorna la lista de productos activos del negocio, con sus categorías. Opcionalmente filtrado por categoría.',
+=======
     summary: 'Obtener catálogo de productos y servicios',
     description:
       'Retorna la lista de productos y servicios activos del negocio, con sus categorías. Opcionalmente filtrado por categoría.',
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
   })
   @ApiQuery({
     name: 'tenantId',
@@ -83,6 +97,13 @@ export class CatalogController {
       name: prod.name,
       description: prod.description,
       imageUrl: prod.imageUrl,
+<<<<<<< HEAD
+      imageUrls: prod.imageUrls,
+      priceInCents: prod.priceInCents,
+      priceFormatted: formatPrice(prod.priceInCents),
+      stock: prod.stock,
+      isAvailable: prod.stock > 0,
+=======
       priceInCents: prod.priceInCents,
       priceFormatted: formatPrice(prod.priceInCents),
       isService: prod.isService,
@@ -90,6 +111,7 @@ export class CatalogController {
       stock: prod.stock,
       // Un servicio siempre está disponible, un producto físico necesita stock > 0
       isAvailable: prod.isService || prod.stock > 0,
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
       categoryId: prod.categoryId,
       categoryName: prod.categoryName,
     }));

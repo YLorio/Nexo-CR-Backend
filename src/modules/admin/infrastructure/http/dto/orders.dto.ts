@@ -1,3 +1,29 @@
+<<<<<<< HEAD
+import { IsEnum, IsOptional, IsInt, Min, Max, IsString } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+
+// Enums en inglés para la API (el servicio los traduce a español para la BD)
+export enum OrderStatusApi {
+  DRAFT = 'DRAFT',
+  AWAITING_PAYMENT = 'AWAITING_PAYMENT',
+  AWAITING_APPROVAL = 'AWAITING_APPROVAL',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  PROCESSING = 'PROCESSING',
+  READY = 'READY',
+  SHIPPED = 'SHIPPED',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+  REFUNDED = 'REFUNDED',
+}
+
+export class ListOrdersQueryDto {
+  @ApiPropertyOptional({ description: 'Filtrar por estado', enum: OrderStatusApi })
+  @IsOptional()
+  @IsString()
+  status?: string;
+=======
 import { IsEnum, IsOptional, IsInt, Min, Max } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -8,6 +34,7 @@ export class ListOrdersQueryDto {
   @IsOptional()
   @IsEnum(OrderStatus)
   status?: OrderStatus;
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 
   @ApiPropertyOptional({ description: 'Página', default: 1 })
   @IsOptional()
@@ -26,14 +53,25 @@ export class ListOrdersQueryDto {
 }
 
 export class UpdateOrderStatusDto {
+<<<<<<< HEAD
+  @ApiPropertyOptional({ description: 'Nuevo estado del pedido', enum: OrderStatusApi })
+  @IsEnum(OrderStatusApi, { message: 'Estado inválido' })
+  status: OrderStatusApi;
+=======
   @ApiPropertyOptional({ description: 'Nuevo estado del pedido', enum: OrderStatus })
   @IsEnum(OrderStatus, { message: 'Estado inválido' })
   status: OrderStatus;
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 }
 
 export class OrderItemDto {
   id: string;
   productName: string;
+<<<<<<< HEAD
+  quantity: number;
+  unitPriceInCents: number;
+  subtotalInCents: number;
+=======
   productIsService: boolean;
   quantity: number;
   unitPriceInCents: number;
@@ -41,6 +79,7 @@ export class OrderItemDto {
   appointmentDate: string | null;
   appointmentTime: string | null;
   durationMinutes: number | null;
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 }
 
 export class OrderResponseDto {

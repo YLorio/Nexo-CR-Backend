@@ -9,15 +9,24 @@ import {
 import {
   IOrderRepository,
   IProductRepository,
+<<<<<<< HEAD
+=======
   ISlotAvailabilityChecker,
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
   IUnitOfWork,
   ProductInfo,
 } from '../ports/outbound';
 import { Order, OrderItem, OrderItemProps } from '../../domain/entities';
+<<<<<<< HEAD
+import { OrderStatusEnum } from '../../domain/value-objects';
+import {
+  InsufficientStockError,
+=======
 import { OrderStatusEnum, Money } from '../../domain/value-objects';
 import {
   InsufficientStockError,
   SlotNotAvailableError,
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
   ProductNotFoundError,
   OrderCreationError,
 } from '../../domain/errors/OrderErrors';
@@ -27,10 +36,16 @@ import {
  *
  * Ejecuta una transacción atómica que:
  * 1. Valida que todos los productos existan y estén activos
+<<<<<<< HEAD
+ * 2. Verifica stock para productos
+ * 3. Decrementa stock de productos
+ * 4. Crea la orden con sus items
+=======
  * 2. Verifica stock para productos físicos
  * 3. Verifica disponibilidad de slots para servicios
  * 4. Decrementa stock de productos físicos
  * 5. Crea la orden con sus items
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
  *
  * Si cualquier paso falla, toda la transacción se revierte.
  */
@@ -38,7 +53,10 @@ export class CreateOrderUC implements ICreateOrderUC {
   constructor(
     private readonly orderRepository: IOrderRepository,
     private readonly productRepository: IProductRepository,
+<<<<<<< HEAD
+=======
     private readonly slotChecker: ISlotAvailabilityChecker,
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
     private readonly unitOfWork: IUnitOfWork,
   ) {}
 
@@ -58,11 +76,19 @@ export class CreateOrderUC implements ICreateOrderUC {
       // 2. Validar todos los productos
       this.validateProducts(command.items, productMap, command.tenantId);
 
+<<<<<<< HEAD
+      // 3. Validar stock
+      this.validateStock(command.items, productMap);
+
+      // 4. Decrementar stock de productos
+      await this.decrementStock(command.items);
+=======
       // 3. Validar stock y disponibilidad
       await this.validateStockAndAvailability(command.items, productMap, command.tenantId);
 
       // 4. Decrementar stock de productos físicos
       await this.decrementStock(command.items, productMap);
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 
       // 5. Obtener siguiente número de orden
       const orderNumber = await this.orderRepository.getNextOrderNumber(command.tenantId);
@@ -80,8 +106,13 @@ export class CreateOrderUC implements ICreateOrderUC {
         customerName: command.customerName,
         customerPhone: command.customerPhone,
         customerEmail: command.customerEmail,
+<<<<<<< HEAD
+        status: OrderStatusEnum.AWAITING_PAYMENT,
+        paymentMethod: command.paymentMethod ?? 'SINPE_MOVIL',
+=======
         status: OrderStatusEnum.PENDING_PAYMENT,
         paymentMethod: command.paymentMethod ?? 'SINPE',
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
         customerNotes: command.customerNotes,
         internalNotes: null,
         createdAt: now,
@@ -122,6 +153,8 @@ export class CreateOrderUC implements ICreateOrderUC {
       if (product.tenantId !== tenantId) {
         throw new ProductNotFoundError(item.productId);
       }
+<<<<<<< HEAD
+=======
 
       // Validar que servicios tengan cita
       if (product.isService) {
@@ -131,10 +164,19 @@ export class CreateOrderUC implements ICreateOrderUC {
           );
         }
       }
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
     }
   }
 
   /**
+<<<<<<< HEAD
+   * Valida stock para productos
+   */
+  private validateStock(
+    items: CreateOrderItemDTO[],
+    productMap: Map<string, ProductInfo>,
+  ): void {
+=======
    * Valida stock para productos físicos y disponibilidad para servicios
    */
   private async validateStockAndAvailability(
@@ -142,6 +184,7 @@ export class CreateOrderUC implements ICreateOrderUC {
     productMap: Map<string, ProductInfo>,
     tenantId: string,
   ): Promise<void> {
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
     // Agrupar cantidades por producto (para validar stock total)
     const quantityByProduct = new Map<string, number>();
     for (const item of items) {
@@ -149,6 +192,17 @@ export class CreateOrderUC implements ICreateOrderUC {
       quantityByProduct.set(item.productId, current + item.quantity);
     }
 
+<<<<<<< HEAD
+    for (const [productId, totalRequested] of quantityByProduct) {
+      const product = productMap.get(productId)!;
+      if (product.stock < totalRequested) {
+        throw new InsufficientStockError(
+          product.id,
+          product.name,
+          totalRequested,
+          product.stock,
+        );
+=======
     for (const item of items) {
       const product = productMap.get(item.productId)!;
 
@@ -180,11 +234,22 @@ export class CreateOrderUC implements ICreateOrderUC {
             product.stock,
           );
         }
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
       }
     }
   }
 
   /**
+<<<<<<< HEAD
+   * Decrementa el stock de todos los productos
+   */
+  private async decrementStock(items: CreateOrderItemDTO[]): Promise<void> {
+    // Agrupar cantidades por producto
+    const quantityByProduct = new Map<string, number>();
+    for (const item of items) {
+      const current = quantityByProduct.get(item.productId) || 0;
+      quantityByProduct.set(item.productId, current + item.quantity);
+=======
    * Decrementa el stock de todos los productos físicos
    */
   private async decrementStock(
@@ -199,6 +264,7 @@ export class CreateOrderUC implements ICreateOrderUC {
         const current = quantityByProduct.get(item.productId) || 0;
         quantityByProduct.set(item.productId, current + item.quantity);
       }
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
     }
 
     // Decrementar stock
@@ -223,6 +289,12 @@ export class CreateOrderUC implements ICreateOrderUC {
         orderId,
         productId: product.id,
         productName: product.name,
+<<<<<<< HEAD
+        unitPriceInCents: product.priceInCents,
+        quantity: item.quantity,
+      };
+
+=======
         productIsService: product.isService,
         unitPriceInCents: product.priceInCents,
         quantity: product.isService ? 1 : item.quantity,
@@ -235,6 +307,7 @@ export class CreateOrderUC implements ICreateOrderUC {
         props.durationMinutes = product.durationMinutes;
       }
 
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
       return new OrderItem(props);
     });
   }
@@ -247,6 +320,11 @@ export class CreateOrderUC implements ICreateOrderUC {
       id: item.id,
       productId: item.productId,
       productName: item.productName,
+<<<<<<< HEAD
+      unitPriceInCents: item.unitPriceInCents,
+      quantity: item.quantity,
+      subtotalInCents: item.subtotalInCents,
+=======
       isService: item.productIsService,
       unitPriceInCents: item.unitPriceInCents,
       quantity: item.quantity,
@@ -254,6 +332,7 @@ export class CreateOrderUC implements ICreateOrderUC {
       appointmentDate: item.appointmentDate?.toISOString().split('T')[0] ?? null,
       appointmentTime: item.appointmentTime,
       durationMinutes: item.durationMinutes,
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
     }));
 
     return {

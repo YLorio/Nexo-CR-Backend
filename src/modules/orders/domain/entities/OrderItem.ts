@@ -2,13 +2,21 @@ import { Money } from '../value-objects';
 
 /**
  * Entity: OrderItem
+<<<<<<< HEAD
+ * Representa un item dentro de una orden (producto)
+=======
  * Representa un item dentro de una orden (producto o servicio)
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
  */
 export interface OrderItemProps {
   id: string;
   orderId: string;
   productId: string;
   productName: string;
+<<<<<<< HEAD
+  unitPriceInCents: number;
+  quantity: number;
+=======
   productIsService: boolean;
   unitPriceInCents: number;
   quantity: number;
@@ -16,17 +24,23 @@ export interface OrderItemProps {
   appointmentDate?: Date | null;
   appointmentTime?: string | null; // "HH:mm"
   durationMinutes?: number | null;
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 }
 
 export interface CreateOrderItemInput {
   productId: string;
   productName: string;
+<<<<<<< HEAD
+  unitPriceInCents: number;
+  quantity: number;
+=======
   productIsService: boolean;
   unitPriceInCents: number;
   quantity: number;
   appointmentDate?: Date;
   appointmentTime?: string;
   durationMinutes?: number;
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 }
 
 export class OrderItem {
@@ -34,24 +48,34 @@ export class OrderItem {
   readonly orderId: string;
   readonly productId: string;
   readonly productName: string;
+<<<<<<< HEAD
+  readonly unitPriceInCents: number;
+  readonly quantity: number;
+=======
   readonly productIsService: boolean;
   readonly unitPriceInCents: number;
   readonly quantity: number;
   readonly appointmentDate: Date | null;
   readonly appointmentTime: string | null;
   readonly durationMinutes: number | null;
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 
   constructor(props: OrderItemProps) {
     this.id = props.id;
     this.orderId = props.orderId;
     this.productId = props.productId;
     this.productName = props.productName;
+<<<<<<< HEAD
+    this.unitPriceInCents = props.unitPriceInCents;
+    this.quantity = props.quantity;
+=======
     this.productIsService = props.productIsService;
     this.unitPriceInCents = props.unitPriceInCents;
     this.quantity = props.quantity;
     this.appointmentDate = props.appointmentDate ?? null;
     this.appointmentTime = props.appointmentTime ?? null;
     this.durationMinutes = props.durationMinutes ?? null;
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 
     this.validate();
   }
@@ -63,6 +87,8 @@ export class OrderItem {
     if (this.unitPriceInCents < 0) {
       throw new Error('Unit price cannot be negative');
     }
+<<<<<<< HEAD
+=======
 
     // Si es servicio, debe tener cita
     if (this.productIsService) {
@@ -77,6 +103,7 @@ export class OrderItem {
         throw new Error('Service items must have quantity of 1');
       }
     }
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
   }
 
   /**
@@ -92,6 +119,8 @@ export class OrderItem {
   get subtotalInCents(): number {
     return this.subtotal.amountInCents;
   }
+<<<<<<< HEAD
+=======
 
   /**
    * Verifica si este item es un servicio con cita
@@ -120,4 +149,5 @@ export class OrderItem {
 
     return `${dateStr} a las ${this.appointmentTime}`;
   }
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
 }

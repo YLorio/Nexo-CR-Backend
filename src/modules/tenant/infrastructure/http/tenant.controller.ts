@@ -47,6 +47,10 @@ export class TenantController {
       id: tenant.id,
       name: tenant.name,
       slug: tenant.slug,
+<<<<<<< HEAD
+      tagline: tenant.tagline,
+=======
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
       logoUrl: tenant.logoUrl,
       bannerUrls: tenant.bannerUrls,
       themeConfig: {

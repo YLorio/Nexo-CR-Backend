@@ -9,7 +9,10 @@ import { CreateOrderUC, CancelOrderUC } from './application/use-cases';
 import {
   PrismaOrderRepository,
   PrismaProductRepository,
+<<<<<<< HEAD
+=======
   PrismaSlotAvailabilityChecker,
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
   PrismaUnitOfWork,
 } from './infrastructure/persistence';
 import { PrismaModule } from '../../prisma/prisma.module';
@@ -39,17 +42,27 @@ import { PrismaService } from '../../prisma/prisma.service';
       useFactory: (prisma: PrismaService) => new PrismaProductRepository(prisma),
       inject: [PrismaService],
     },
+<<<<<<< HEAD
+=======
     {
       provide: 'ISlotAvailabilityChecker',
       useFactory: (prisma: PrismaService) => new PrismaSlotAvailabilityChecker(prisma),
       inject: [PrismaService],
     },
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
     // Casos de uso
     {
       provide: CREATE_ORDER_UC,
       useFactory: (
         orderRepo: PrismaOrderRepository,
         productRepo: PrismaProductRepository,
+<<<<<<< HEAD
+        unitOfWork: PrismaUnitOfWork,
+      ) => new CreateOrderUC(orderRepo, productRepo, unitOfWork),
+      inject: [
+        ORDER_REPOSITORY,
+        'IProductRepository',
+=======
         slotChecker: PrismaSlotAvailabilityChecker,
         unitOfWork: PrismaUnitOfWork,
       ) => new CreateOrderUC(orderRepo, productRepo, slotChecker, unitOfWork),
@@ -57,6 +70,7 @@ import { PrismaService } from '../../prisma/prisma.service';
         ORDER_REPOSITORY,
         'IProductRepository',
         'ISlotAvailabilityChecker',
+>>>>>>> 66dea1032b6ec2617a2dac12f0fdb510837b194d
         'IUnitOfWork',
       ],
     },
