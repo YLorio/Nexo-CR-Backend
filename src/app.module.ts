@@ -16,6 +16,8 @@ import { CatalogModule } from './modules/catalog/catalog.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { PlatformModule } from './modules/platform/platform.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { UserAddressesModule } from './modules/user-addresses/user-addresses.module';
+import { LocationsModule } from './modules/locations/locations.module';
 
 // Filtros de excepciones
 import { DomainExceptionFilter } from './modules/shared/infrastructure/filters';
@@ -62,6 +64,8 @@ import { DomainExceptionFilter } from './modules/shared/infrastructure/filters';
     OrdersModule,
     TenantModule,
     CatalogModule,
+    UserAddressesModule,
+    LocationsModule,
   ],
   providers: [
     // Rate Limiting Guard Global

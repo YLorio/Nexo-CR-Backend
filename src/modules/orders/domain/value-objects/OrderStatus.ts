@@ -1,23 +1,34 @@
 /**
  * Value Object: OrderStatus
- * Estados posibles de una orden
+ * Estados posibles de una orden - Sincronizado con Prisma
  */
 export enum OrderStatusEnum {
-  PENDING_PAYMENT = 'PENDING_PAYMENT',
-  PAID = 'PAID',
+  DRAFT = 'DRAFT',
+  AWAITING_PAYMENT = 'AWAITING_PAYMENT',
+  AWAITING_APPROVAL = 'AWAITING_APPROVAL',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  PROCESSING = 'PROCESSING',
+  READY = 'READY',
+  SHIPPED = 'SHIPPED',
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
+  REFUNDED = 'REFUNDED',
 }
 
 export class OrderStatus {
   constructor(public readonly value: OrderStatusEnum) {}
 
-  static pendingPayment(): OrderStatus {
-    return new OrderStatus(OrderStatusEnum.PENDING_PAYMENT);
+  static draft(): OrderStatus {
+    return new OrderStatus(OrderStatusEnum.DRAFT);
   }
 
-  static paid(): OrderStatus {
-    return new OrderStatus(OrderStatusEnum.PAID);
+  static awaitingPayment(): OrderStatus {
+    return new OrderStatus(OrderStatusEnum.AWAITING_PAYMENT);
+  }
+
+  static approved(): OrderStatus {
+    return new OrderStatus(OrderStatusEnum.APPROVED);
   }
 
   static completed(): OrderStatus {
@@ -41,27 +52,63 @@ export class OrderStatus {
    */
   canTransitionTo(newStatus: OrderStatus): boolean {
     const allowedTransitions: Record<OrderStatusEnum, OrderStatusEnum[]> = {
-      [OrderStatusEnum.PENDING_PAYMENT]: [
-        OrderStatusEnum.PAID,
+      [OrderStatusEnum.DRAFT]: [
+        OrderStatusEnum.AWAITING_PAYMENT,
+        OrderStatusEnum.AWAITING_APPROVAL,
         OrderStatusEnum.CANCELLED,
       ],
-      [OrderStatusEnum.PAID]: [
+      [OrderStatusEnum.AWAITING_PAYMENT]: [
+        OrderStatusEnum.APPROVED,
+        OrderStatusEnum.AWAITING_APPROVAL,
+        OrderStatusEnum.DRAFT, // Retroceder
+        OrderStatusEnum.CANCELLED,
+      ],
+      [OrderStatusEnum.AWAITING_APPROVAL]: [
+        OrderStatusEnum.APPROVED,
+        OrderStatusEnum.REJECTED,
+        OrderStatusEnum.DRAFT, // Retroceder
+        OrderStatusEnum.CANCELLED,
+      ],
+      [OrderStatusEnum.APPROVED]: [
+        OrderStatusEnum.PROCESSING,
+        OrderStatusEnum.AWAITING_APPROVAL, // Retroceder (SINPE)
+        OrderStatusEnum.AWAITING_PAYMENT, // Retroceder (CASH)
+        OrderStatusEnum.CANCELLED,
+      ],
+      [OrderStatusEnum.PROCESSING]: [
+        OrderStatusEnum.READY,
+        OrderStatusEnum.APPROVED, // Retroceder
+        OrderStatusEnum.CANCELLED,
+      ],
+      [OrderStatusEnum.READY]: [
+        OrderStatusEnum.SHIPPED,
         OrderStatusEnum.COMPLETED,
+        OrderStatusEnum.PROCESSING, // Retroceder
         OrderStatusEnum.CANCELLED,
       ],
-      [OrderStatusEnum.COMPLETED]: [],
+      [OrderStatusEnum.SHIPPED]: [
+        OrderStatusEnum.COMPLETED,
+        OrderStatusEnum.READY, // Retroceder
+        OrderStatusEnum.CANCELLED,
+      ],
+      [OrderStatusEnum.REJECTED]: [
+        OrderStatusEnum.AWAITING_APPROVAL, // Reenviar a aprobación
+        OrderStatusEnum.CANCELLED,
+      ],
+      [OrderStatusEnum.COMPLETED]: [OrderStatusEnum.REFUNDED],
       [OrderStatusEnum.CANCELLED]: [],
+      [OrderStatusEnum.REFUNDED]: [],
     };
 
     return allowedTransitions[this.value].includes(newStatus.value);
   }
 
-  isPendingPayment(): boolean {
-    return this.value === OrderStatusEnum.PENDING_PAYMENT;
+  isAwaitingPayment(): boolean {
+    return this.value === OrderStatusEnum.AWAITING_PAYMENT;
   }
 
-  isPaid(): boolean {
-    return this.value === OrderStatusEnum.PAID;
+  isApproved(): boolean {
+    return this.value === OrderStatusEnum.APPROVED;
   }
 
   isCompleted(): boolean {
@@ -76,15 +123,25 @@ export class OrderStatus {
    * Verifica si la orden puede ser cancelada
    */
   canBeCancelled(): boolean {
-    return this.canTransitionTo(OrderStatus.cancelled());
+    return this.value !== OrderStatusEnum.COMPLETED && 
+           this.value !== OrderStatusEnum.CANCELLED && 
+           this.value !== OrderStatusEnum.REFUNDED &&
+           this.value !== OrderStatusEnum.REJECTED;
   }
 
   toSpanish(): string {
     const names: Record<OrderStatusEnum, string> = {
-      [OrderStatusEnum.PENDING_PAYMENT]: 'Pendiente de Pago',
-      [OrderStatusEnum.PAID]: 'Pagado',
+      [OrderStatusEnum.DRAFT]: 'Borrador',
+      [OrderStatusEnum.AWAITING_PAYMENT]: 'Pendiente de Pago',
+      [OrderStatusEnum.AWAITING_APPROVAL]: 'Pendiente de Aprobación',
+      [OrderStatusEnum.APPROVED]: 'Aprobado',
+      [OrderStatusEnum.REJECTED]: 'Rechazado',
+      [OrderStatusEnum.PROCESSING]: 'En Proceso',
+      [OrderStatusEnum.READY]: 'Listo',
+      [OrderStatusEnum.SHIPPED]: 'Enviado',
       [OrderStatusEnum.COMPLETED]: 'Completado',
       [OrderStatusEnum.CANCELLED]: 'Cancelado',
+      [OrderStatusEnum.REFUNDED]: 'Reembolsado',
     };
     return names[this.value];
   }

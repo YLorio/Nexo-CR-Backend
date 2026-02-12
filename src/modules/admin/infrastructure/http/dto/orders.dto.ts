@@ -34,6 +34,7 @@ export class UpdateOrderStatusDto {
 export class OrderItemDto {
   id: string;
   productName: string;
+  productImageUrl?: string | null;
   productIsService: boolean;
   quantity: number;
   unitPriceInCents: number;
@@ -41,6 +42,13 @@ export class OrderItemDto {
   appointmentDate: string | null;
   appointmentTime: string | null;
   durationMinutes: number | null;
+}
+
+export interface ShippingAddressDto {
+  provincia: string;
+  canton: string;
+  distrito: string;
+  detalles: string;
 }
 
 export class OrderResponseDto {
@@ -53,8 +61,10 @@ export class OrderResponseDto {
   totalInCents: number;
   status: string;
   paymentMethod: string | null;
+  paymentProofUrl?: string | null;
   customerNotes: string | null;
   internalNotes: string | null;
+  shippingAddress?: ShippingAddressDto | null;
   items: OrderItemDto[];
   createdAt: Date;
   paidAt: Date | null;

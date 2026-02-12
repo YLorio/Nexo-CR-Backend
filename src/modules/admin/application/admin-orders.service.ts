@@ -83,6 +83,7 @@ export class AdminOrdersService {
     const items: OrderItemDto[] = order.items.map((item: any) => ({
       id: item.id,
       productName: item.name,
+      productImageUrl: item.imageUrl || null,
       productIsService: item.serviceId !== null,
       quantity: item.quantity,
       unitPriceInCents: item.unitPriceInCents,
@@ -91,6 +92,14 @@ export class AdminOrdersService {
       appointmentTime: null,
       durationMinutes: null,
     }));
+
+    // Map shipping address if exists
+    const shippingAddress = order.shippingAddress ? {
+      provincia: order.shippingAddress.provincia.nombre,
+      canton: order.shippingAddress.canton.nombre,
+      distrito: order.shippingAddress.distrito.nombre,
+      detalles: order.shippingAddress.streetAddress,
+    } : null;
 
     return {
       id: order.id,
@@ -102,8 +111,10 @@ export class AdminOrdersService {
       totalInCents: order.totalCents,
       status: order.status,
       paymentMethod: order.paymentMethod || 'N/A',
+      paymentProofUrl: order.paymentProofUrl,
       customerNotes: order.customerNotes,
       internalNotes: order.internalNotes,
+      shippingAddress,
       items,
       createdAt: order.createdAt,
       paidAt: order.paidAt,
@@ -158,6 +169,46 @@ export class AdminOrdersService {
   }
 
   /**
+   * Obtiene una orden específica por ID
+   * SEGURIDAD: Verifica que la orden pertenece al tenant
+   */
+  async getOrderById(tenantId: string, orderId: string): Promise<OrderResponseDto> {
+    const order = await this.prisma.order.findFirst({
+      where: {
+        id: orderId,
+        tenantId,
+        deletedAt: null,
+      },
+      include: {
+        items: true,
+        shippingAddress: {
+          include: {
+            provincia: true,
+            canton: true,
+            distrito: true,
+          },
+        },
+        customerProfile: {
+          include: {
+            user: {
+              select: { firstName: true, lastName: true, email: true, phone: true },
+            },
+          },
+        },
+        shadowProfile: {
+          select: { firstName: true, lastName: true, email: true, phone: true },
+        },
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Orden no encontrada');
+    }
+
+    return this.mapOrderToDto(order);
+  }
+
+  /**
    * Actualiza el estado de una orden
    * SEGURIDAD: Verifica que la orden pertenece al tenant
    */
@@ -192,16 +243,51 @@ export class AdminOrdersService {
       throw new NotFoundException('Orden no encontrada');
     }
 
-    // Validar transiciones de estado permitidas
+    // Validar transiciones de estado permitidas (incluyendo retrocesos)
     const validTransitions: Record<OrderStatus, OrderStatus[]> = {
-      DRAFT: [OrderStatus.AWAITING_PAYMENT, OrderStatus.CANCELLED],
-      AWAITING_PAYMENT: [OrderStatus.AWAITING_APPROVAL, OrderStatus.APPROVED, OrderStatus.CANCELLED],
-      AWAITING_APPROVAL: [OrderStatus.APPROVED, OrderStatus.REJECTED],
-      APPROVED: [OrderStatus.PROCESSING, OrderStatus.CANCELLED],
-      REJECTED: [OrderStatus.CANCELLED],
-      PROCESSING: [OrderStatus.READY, OrderStatus.CANCELLED],
-      READY: [OrderStatus.SHIPPED, OrderStatus.COMPLETED, OrderStatus.CANCELLED],
-      SHIPPED: [OrderStatus.COMPLETED, OrderStatus.CANCELLED],
+      DRAFT: [
+        OrderStatus.AWAITING_PAYMENT,
+        OrderStatus.AWAITING_APPROVAL,
+        OrderStatus.CANCELLED,
+      ],
+      AWAITING_PAYMENT: [
+        OrderStatus.APPROVED,
+        OrderStatus.AWAITING_APPROVAL,
+        OrderStatus.DRAFT, // Retroceder
+        OrderStatus.CANCELLED,
+      ],
+      AWAITING_APPROVAL: [
+        OrderStatus.APPROVED,
+        OrderStatus.REJECTED,
+        OrderStatus.DRAFT, // Retroceder
+        OrderStatus.CANCELLED,
+      ],
+      APPROVED: [
+        OrderStatus.PROCESSING,
+        OrderStatus.AWAITING_APPROVAL, // Retroceder (SINPE)
+        OrderStatus.AWAITING_PAYMENT, // Retroceder (CASH)
+        OrderStatus.CANCELLED,
+      ],
+      REJECTED: [
+        OrderStatus.AWAITING_APPROVAL, // Reenviar a aprobación
+        OrderStatus.CANCELLED,
+      ],
+      PROCESSING: [
+        OrderStatus.READY,
+        OrderStatus.APPROVED, // Retroceder
+        OrderStatus.CANCELLED,
+      ],
+      READY: [
+        OrderStatus.SHIPPED,
+        OrderStatus.COMPLETED,
+        OrderStatus.PROCESSING, // Retroceder
+        OrderStatus.CANCELLED,
+      ],
+      SHIPPED: [
+        OrderStatus.COMPLETED,
+        OrderStatus.READY, // Retroceder
+        OrderStatus.CANCELLED,
+      ],
       COMPLETED: [OrderStatus.REFUNDED],
       CANCELLED: [],
       REFUNDED: [],

@@ -6,6 +6,7 @@ import { AdminCatalogService } from './application/admin-catalog.service';
 import { AdminOrdersService } from './application/admin-orders.service';
 import { AdminSettingsService } from './application/admin-settings.service';
 import { AdminStaffService } from './application/admin-staff.service';
+import { AdminPagesService } from './application/admin-pages.service';
 
 /**
  * Módulo Admin para Tenant Owners
@@ -29,12 +30,14 @@ import { AdminStaffService } from './application/admin-staff.service';
     AdminOrdersService,
     AdminSettingsService,
     AdminStaffService,
+    AdminPagesService,
   ],
   exports: [
     AdminCatalogService,
     AdminOrdersService,
     AdminSettingsService,
     AdminStaffService,
+    AdminPagesService,
   ],
 })
 export class AdminModule {}

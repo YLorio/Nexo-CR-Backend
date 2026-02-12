@@ -1,4 +1,4 @@
-import { IsString, IsUUID, IsOptional, IsNotEmpty } from 'class-validator';
+import { IsString, IsOptional, IsNotEmpty } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 /**
@@ -6,7 +6,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
  */
 export class CancelOrderDto {
   @ApiProperty({ description: 'ID del tenant' })
-  @IsUUID('4', { message: 'tenantId debe ser un UUID válido' })
+  @IsString({ message: 'tenantId debe ser un string válido' })
   @IsNotEmpty({ message: 'tenantId es requerido' })
   tenantId: string;
 

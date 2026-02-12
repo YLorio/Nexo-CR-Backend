@@ -1,7 +1,14 @@
 import { OrderStatus, OrderStatusEnum, Money } from '../value-objects';
 import { OrderItem } from './OrderItem';
 
-export type PaymentMethodType = 'SINPE' | 'CASH';
+export type PaymentMethodType = 'CASH' | 'CARD' | 'TRANSFER' | 'SINPE_MOVIL' | 'OTHER';
+
+export interface ShippingAddress {
+  provincia: string;
+  canton: string;
+  distrito: string;
+  detalles: string;
+}
 
 /**
  * Entity: Order
@@ -10,14 +17,17 @@ export type PaymentMethodType = 'SINPE' | 'CASH';
 export interface OrderProps {
   id: string;
   tenantId: string;
+  userId?: string | null;
   orderNumber: number;
   customerName: string;
   customerPhone: string;
   customerEmail?: string | null;
   status: OrderStatusEnum;
   paymentMethod?: PaymentMethodType;
+  paymentProofUrl?: string | null;
   customerNotes?: string | null;
   internalNotes?: string | null;
+  shippingAddress?: ShippingAddress | null;
   createdAt: Date;
   updatedAt: Date;
   paidAt?: Date | null;
@@ -36,14 +46,17 @@ export interface CustomerInfo {
 export class Order {
   readonly id: string;
   readonly tenantId: string;
+  readonly userId: string | null;
   readonly orderNumber: number;
   readonly customerName: string;
   readonly customerPhone: string;
   readonly customerEmail: string | null;
   private _status: OrderStatus;
   readonly paymentMethod: PaymentMethodType;
+  private _paymentProofUrl: string | null;
   readonly customerNotes: string | null;
   private _internalNotes: string | null;
+  readonly shippingAddress: ShippingAddress | null;
   readonly createdAt: Date;
   private _updatedAt: Date;
   private _paidAt: Date | null;
@@ -54,14 +67,17 @@ export class Order {
   constructor(props: OrderProps) {
     this.id = props.id;
     this.tenantId = props.tenantId;
+    this.userId = props.userId ?? null;
     this.orderNumber = props.orderNumber;
     this.customerName = props.customerName;
     this.customerPhone = props.customerPhone;
     this.customerEmail = props.customerEmail ?? null;
     this._status = new OrderStatus(props.status);
-    this.paymentMethod = props.paymentMethod ?? 'SINPE';
+    this.paymentMethod = props.paymentMethod ?? 'SINPE_MOVIL';
+    this._paymentProofUrl = props.paymentProofUrl ?? null;
     this.customerNotes = props.customerNotes ?? null;
     this._internalNotes = props.internalNotes ?? null;
+    this.shippingAddress = props.shippingAddress ?? null;
     this.createdAt = props.createdAt;
     this._updatedAt = props.updatedAt;
     this._paidAt = props.paidAt ?? null;
@@ -87,6 +103,15 @@ export class Order {
   // Getters
   get status(): OrderStatus {
     return this._status;
+  }
+
+  get paymentProofUrl(): string | null {
+    return this._paymentProofUrl;
+  }
+
+  setPaymentProofUrl(url: string): void {
+    this._paymentProofUrl = url;
+    this._updatedAt = new Date();
   }
 
   get internalNotes(): string | null {
@@ -167,13 +192,13 @@ export class Order {
   }
 
   /**
-   * Marca la orden como pagada
+   * Marca la orden como aprobada
    */
-  markAsPaid(): void {
-    if (!this._status.canTransitionTo(OrderStatus.paid())) {
-      throw new Error(`Cannot mark order as paid from status: ${this._status.value}`);
+  markAsApproved(): void {
+    if (!this._status.canTransitionTo(OrderStatus.approved())) {
+      throw new Error(`Cannot mark order as approved from status: ${this._status.value}`);
     }
-    this._status = OrderStatus.paid();
+    this._status = OrderStatus.approved();
     this._paidAt = new Date();
     this._updatedAt = new Date();
   }

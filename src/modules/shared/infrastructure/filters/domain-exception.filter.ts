@@ -24,6 +24,9 @@ const errorCodeToHttpStatus: Record<string, HttpStatus> = {
   INVALID_STATUS_TRANSITION: HttpStatus.CONFLICT,
   TENANT_NOT_FOUND: HttpStatus.NOT_FOUND,
   ORDER_CREATION_ERROR: HttpStatus.BAD_REQUEST,
+  FORBIDDEN: HttpStatus.FORBIDDEN,
+  UNAUTHORIZED: HttpStatus.UNAUTHORIZED,
+  INVALID_CREDENTIALS: HttpStatus.UNAUTHORIZED,
 };
 
 /**

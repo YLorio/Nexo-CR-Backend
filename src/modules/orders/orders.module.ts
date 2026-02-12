@@ -14,13 +14,14 @@ import {
 } from './infrastructure/persistence';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuthModule } from '../auth/auth.module';
 
 /**
  * Módulo de Orders
  * Gestiona la creación, consulta y cancelación de órdenes
  */
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AuthModule],
   controllers: [OrdersController],
   providers: [
     // Infraestructura

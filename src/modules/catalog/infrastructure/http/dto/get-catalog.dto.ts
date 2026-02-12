@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsUUID, IsOptional } from 'class-validator';
+import { IsString, IsOptional } from 'class-validator';
 
 /**
  * DTO de query params para obtener el catálogo
@@ -9,7 +9,7 @@ export class GetCatalogQueryDto {
     description: 'ID del tenant (negocio)',
     example: '550e8400-e29b-41d4-a716-446655440000',
   })
-  @IsUUID('4', { message: 'tenantId debe ser un UUID válido' })
+  @IsString({ message: 'tenantId debe ser un string válido' })
   tenantId: string;
 
   @ApiPropertyOptional({
@@ -17,7 +17,7 @@ export class GetCatalogQueryDto {
     example: '660e8400-e29b-41d4-a716-446655440001',
   })
   @IsOptional()
-  @IsUUID('4', { message: 'categoryId debe ser un UUID válido' })
+  @IsString({ message: 'categoryId debe ser un string válido' })
   categoryId?: string;
 }
 
@@ -82,6 +82,12 @@ export class ProductDto {
   })
   imageUrl: string | null;
 
+  @ApiPropertyOptional({
+    description: 'URLs de las imagenes del producto',
+    type: [String],
+  })
+  imageUrls: string[];
+
   @ApiProperty({
     description: 'Precio en centavos',
     example: 500000,
@@ -112,6 +118,12 @@ export class ProductDto {
     example: 10,
   })
   stock: number;
+
+  @ApiProperty({
+    description: 'Indica si el producto controla inventario',
+    example: true,
+  })
+  trackInventory: boolean;
 
   @ApiProperty({
     description: 'Indica si el producto está disponible para compra',

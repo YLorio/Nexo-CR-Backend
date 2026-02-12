@@ -83,13 +83,17 @@ export class CatalogController {
       name: prod.name,
       description: prod.description,
       imageUrl: prod.imageUrl,
+      imageUrls: prod.imageUrls,
       priceInCents: prod.priceInCents,
       priceFormatted: formatPrice(prod.priceInCents),
       isService: prod.isService,
       durationMinutes: prod.durationMinutes,
       stock: prod.stock,
-      // Un servicio siempre está disponible, un producto físico necesita stock > 0
-      isAvailable: prod.isService || prod.stock > 0,
+      trackInventory: prod.trackInventory,
+      // Un servicio siempre está disponible
+      // Un producto sin control de inventario siempre está disponible
+      // Un producto con control de inventario necesita stock > 0
+      isAvailable: prod.isService || !prod.trackInventory || prod.stock > 0,
       categoryId: prod.categoryId,
       categoryName: prod.categoryName,
     }));

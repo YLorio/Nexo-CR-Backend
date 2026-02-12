@@ -33,6 +33,11 @@ export interface IOrderRepository {
   ): Promise<Order[]>;
 
   /**
+   * Obtiene órdenes por ID de usuario (todas las tiendas)
+   */
+  findByUserId(userId: string): Promise<Order[]>;
+
+  /**
    * Actualiza una orden existente
    */
   update(order: Order): Promise<Order>;

@@ -17,6 +17,12 @@ export class PrismaProductRepository extends BaseRepository implements IProductR
     // Primero intentar como servicio
     const service = await client.serviceDefinition.findUnique({
       where: { id: productId },
+      include: {
+        images: {
+          orderBy: { sortOrder: 'asc' },
+          take: 1,
+        },
+      },
     });
 
     if (service && !service.deletedAt) {
@@ -24,11 +30,13 @@ export class PrismaProductRepository extends BaseRepository implements IProductR
         id: service.id,
         tenantId: service.tenantId,
         name: service.name,
+        imageUrl: service.images[0]?.imageUrl || null,
         priceInCents: service.basePriceInCents,
         isService: true,
         stock: 0, // Servicios no tienen stock
         durationMinutes: service.durationMinutes,
         isActive: service.isActive,
+        trackInventory: false, // Servicios no controlan inventario
       };
     }
 
@@ -36,7 +44,14 @@ export class PrismaProductRepository extends BaseRepository implements IProductR
     const variant = await client.productVariant.findUnique({
       where: { id: productId },
       include: {
-        inventoryItem: true,
+        inventoryItem: {
+          include: {
+            images: {
+              orderBy: { sortOrder: 'asc' },
+              take: 1,
+            },
+          },
+        },
       },
     });
 
@@ -45,11 +60,48 @@ export class PrismaProductRepository extends BaseRepository implements IProductR
         id: variant.id,
         tenantId: variant.inventoryItem.tenantId,
         name: variant.inventoryItem.name,
+        imageUrl: variant.inventoryItem.images[0]?.imageUrl || null,
         priceInCents: variant.priceInCents,
         isService: false,
         stock: variant.stock,
         durationMinutes: null,
         isActive: variant.isActive && variant.inventoryItem.isActive,
+        trackInventory: variant.trackInventory,
+      };
+    }
+
+    // Finalmente intentar como ID de InventoryItem (buscar su variante por defecto)
+    const itemWithDefaultVariant = await client.inventoryItem.findUnique({
+      where: { id: productId },
+      include: {
+        variants: {
+          where: { isDefault: true, deletedAt: null },
+          take: 1,
+        },
+        images: {
+          orderBy: { sortOrder: 'asc' },
+          take: 1,
+        },
+      },
+    });
+
+    if (
+      itemWithDefaultVariant &&
+      !itemWithDefaultVariant.deletedAt &&
+      itemWithDefaultVariant.variants.length > 0
+    ) {
+      const defaultVariant = itemWithDefaultVariant.variants[0];
+      return {
+        id: defaultVariant.id, // Retornamos el ID de la VARIANTE para que Orders use este en adelante
+        tenantId: itemWithDefaultVariant.tenantId,
+        name: itemWithDefaultVariant.name,
+        imageUrl: itemWithDefaultVariant.images[0]?.imageUrl || null,
+        priceInCents: defaultVariant.priceInCents,
+        isService: false,
+        stock: defaultVariant.stock,
+        durationMinutes: null,
+        isActive: defaultVariant.isActive && itemWithDefaultVariant.isActive,
+        trackInventory: defaultVariant.trackInventory,
       };
     }
 

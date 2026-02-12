@@ -5,11 +5,13 @@ export interface ProductInfo {
   id: string;
   tenantId: string;
   name: string;
+  imageUrl: string | null;
   priceInCents: number;
   isService: boolean;
   stock: number;
   durationMinutes: number | null;
   isActive: boolean;
+  trackInventory: boolean;
 }
 
 export interface IProductRepository {

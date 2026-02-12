@@ -71,19 +71,27 @@ export class CreateOrderUC implements ICreateOrderUC {
       const orderId = uuidv4();
       const orderItems = this.createOrderItems(orderId, command.items, productMap);
 
-      // 7. Crear la orden
+      // 7. Determinar el estado inicial según el método de pago
+      const paymentMethod = (command.paymentMethod as any) ?? 'SINPE_MOVIL';
+      const initialStatus = paymentMethod === 'SINPE_MOVIL'
+        ? OrderStatusEnum.AWAITING_APPROVAL  // SINPE requiere aprobación del comprobante
+        : OrderStatusEnum.AWAITING_PAYMENT;  // CASH espera pago contra entrega
+
+      // 8. Crear la orden
       const now = new Date();
       const order = new Order({
         id: orderId,
         tenantId: command.tenantId,
+        userId: command.userId,
         orderNumber,
         customerName: command.customerName,
         customerPhone: command.customerPhone,
         customerEmail: command.customerEmail,
-        status: OrderStatusEnum.PENDING_PAYMENT,
-        paymentMethod: command.paymentMethod ?? 'SINPE',
+        status: initialStatus,
+        paymentMethod,
         customerNotes: command.customerNotes,
         internalNotes: null,
+        shippingAddress: command.shippingAddress || null,
         createdAt: now,
         updatedAt: now,
         paidAt: null,
@@ -92,10 +100,10 @@ export class CreateOrderUC implements ICreateOrderUC {
         items: orderItems,
       });
 
-      // 8. Guardar la orden
+      // 9. Guardar la orden
       const savedOrder = await this.orderRepository.save(order);
 
-      // 9. Mapear a DTO de respuesta
+      // 10. Mapear a DTO de respuesta
       return this.toDTO(savedOrder);
     });
   }
@@ -170,22 +178,24 @@ export class CreateOrderUC implements ICreateOrderUC {
           );
         }
       } else {
-        // Verificar stock
-        const totalRequested = quantityByProduct.get(item.productId)!;
-        if (product.stock < totalRequested) {
-          throw new InsufficientStockError(
-            product.id,
-            product.name,
-            totalRequested,
-            product.stock,
-          );
+        // Verificar stock solo si trackInventory está activado
+        if (product.trackInventory) {
+          const totalRequested = quantityByProduct.get(item.productId)!;
+          if (product.stock < totalRequested) {
+            throw new InsufficientStockError(
+              product.id,
+              product.name,
+              totalRequested,
+              product.stock,
+            );
+          }
         }
       }
     }
   }
 
   /**
-   * Decrementa el stock de todos los productos físicos
+   * Decrementa el stock de todos los productos físicos (solo si trackInventory está activado)
    */
   private async decrementStock(
     items: CreateOrderItemDTO[],
@@ -195,7 +205,8 @@ export class CreateOrderUC implements ICreateOrderUC {
     const quantityByProduct = new Map<string, number>();
     for (const item of items) {
       const product = productMap.get(item.productId)!;
-      if (!product.isService) {
+      // Solo decrementar stock si es producto físico Y tiene control de inventario activado
+      if (!product.isService && product.trackInventory) {
         const current = quantityByProduct.get(item.productId) || 0;
         quantityByProduct.set(item.productId, current + item.quantity);
       }
@@ -223,6 +234,7 @@ export class CreateOrderUC implements ICreateOrderUC {
         orderId,
         productId: product.id,
         productName: product.name,
+        productImageUrl: product.imageUrl,
         productIsService: product.isService,
         unitPriceInCents: product.priceInCents,
         quantity: product.isService ? 1 : item.quantity,

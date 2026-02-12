@@ -4,7 +4,6 @@ import {
   IsOptional,
   IsBoolean,
   IsArray,
-  IsUUID,
   IsInt,
   Min,
   MaxLength,
@@ -47,7 +46,7 @@ export class CreateEmployeeDto {
   })
   @IsOptional()
   @IsArray()
-  @IsUUID('4', { each: true })
+  @IsString({ each: true })
   serviceIds?: string[];
 }
 
@@ -96,7 +95,7 @@ export class UpdateEmployeeDto {
   })
   @IsOptional()
   @IsArray()
-  @IsUUID('4', { each: true })
+  @IsString({ each: true })
   serviceIds?: string[];
 }
 

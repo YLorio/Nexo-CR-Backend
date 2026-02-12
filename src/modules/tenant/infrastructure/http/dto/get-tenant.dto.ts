@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 /**
  * DTO de respuesta con información pública del tenant
@@ -16,6 +16,13 @@ export class TenantResponseDto {
     example: 'Barbería Don Carlos',
   })
   name: string;
+
+  @ApiProperty({
+    description: 'Tagline o descripción corta',
+    example: 'Cortes clásicos y modernos',
+    nullable: true,
+  })
+  tagline: string | null;
 
   @ApiProperty({
     description: 'Slug único para la URL',
@@ -39,12 +46,25 @@ export class TenantResponseDto {
 
   @ApiProperty({
     description: 'Configuración del tema visual',
-    example: { primaryColor: '#6366f1', accentColor: '#f59e0b' },
+    example: { primaryColor: '#6366f1', accentColor: '#f59e0b', backgroundColor: '#ffffff' },
   })
   themeConfig: {
     primaryColor: string;
     accentColor: string;
+    backgroundColor: string;
   };
+
+  @ApiPropertyOptional({
+    description: 'Badges de confianza configurados',
+    example: [{ icon: 'truck', title: 'Envío', subtitle: 'Gratis' }],
+  })
+  trustBadges?: Array<{ icon: string; title: string; subtitle: string }>;
+
+  @ApiPropertyOptional({
+    description: 'Mostrar badges de confianza',
+    example: true,
+  })
+  showTrustBadges?: boolean;
 
   @ApiProperty({
     description: 'Número de WhatsApp para contacto',
@@ -57,4 +77,14 @@ export class TenantResponseDto {
     example: 'CRC',
   })
   currency: string;
+
+  @ApiPropertyOptional({
+    description: 'Configuración extendida del tema y layout',
+  })
+  theme?: {
+    config: any;
+    layoutConfig?: any;
+    fontFamilyHeading: string;
+    fontFamilyBody: string;
+  };
 }

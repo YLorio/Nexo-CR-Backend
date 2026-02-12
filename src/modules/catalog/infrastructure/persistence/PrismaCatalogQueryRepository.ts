@@ -30,8 +30,7 @@ export class PrismaCatalogQueryRepository implements ICatalogQueryRepository {
             select: { name: true },
           },
           images: {
-            where: { isPrimary: true },
-            take: 1,
+            orderBy: { sortOrder: 'asc' },
           },
           variants: {
             where: { isDefault: true, isActive: true },
@@ -44,15 +43,18 @@ export class PrismaCatalogQueryRepository implements ICatalogQueryRepository {
       for (const item of inventoryItems) {
         const defaultVariant = item.variants[0];
         if (defaultVariant) {
+          const imageUrls = item.images.map(img => img.imageUrl);
           results.push({
-            id: item.id,
+            id: defaultVariant.id, // Retornamos el ID de la variante para que sea el ID de compra
             name: item.name,
             description: item.description,
-            imageUrl: item.images[0]?.imageUrl || null,
+            imageUrl: item.images.find(img => img.isPrimary)?.imageUrl || imageUrls[0] || null,
+            imageUrls,
             priceInCents: defaultVariant.priceInCents,
             isService: false,
             durationMinutes: null,
             stock: defaultVariant.stock,
+            trackInventory: defaultVariant.trackInventory,
             categoryId: item.categoryId,
             categoryName: item.category?.name || null,
             sortOrder: 0,
@@ -74,23 +76,25 @@ export class PrismaCatalogQueryRepository implements ICatalogQueryRepository {
             select: { name: true },
           },
           images: {
-            where: { isPrimary: true },
-            take: 1,
+            orderBy: { sortOrder: 'asc' },
           },
         },
         orderBy: [{ name: 'asc' }],
       });
 
       for (const service of services) {
+        const imageUrls = service.images.map(img => img.imageUrl);
         results.push({
           id: service.id,
           name: service.name,
           description: service.description,
-          imageUrl: service.images[0]?.imageUrl || null,
+          imageUrl: service.images.find(img => img.isPrimary)?.imageUrl || imageUrls[0] || null,
+          imageUrls,
           priceInCents: service.basePriceInCents,
           isService: true,
           durationMinutes: service.durationMinutes,
           stock: 0,
+          trackInventory: false, // Los servicios no controlan inventario
           categoryId: service.categoryId,
           categoryName: service.category?.name || null,
           sortOrder: 0,

@@ -14,12 +14,24 @@ export class PrismaTenantQueryRepository implements ITenantQueryRepository {
         id: true,
         name: true,
         slug: true,
+        tagline: true,
         logo: true,
         primaryColor: true,
         accentColor: true,
+        backgroundColor: true,
+        trustBadges: true,
+        showTrustBadges: true,
         whatsappNumber: true,
         defaultCurrency: true,
         isActive: true,
+        theme: {
+          select: {
+            config: true,
+            layoutConfig: true,
+            fontFamilyHeading: true,
+            fontFamilyBody: true,
+          }
+        },
         banners: {
           where: { isActive: true },
           orderBy: { sortOrder: 'asc' },
@@ -38,13 +50,23 @@ export class PrismaTenantQueryRepository implements ITenantQueryRepository {
       id: tenant.id,
       name: tenant.name,
       slug: tenant.slug,
+      tagline: tenant.tagline,
       logoUrl: tenant.logo,
       bannerUrls,
       primaryColor: tenant.primaryColor,
       accentColor: tenant.accentColor,
+      backgroundColor: tenant.backgroundColor,
+      trustBadges: tenant.trustBadges as any,
+      showTrustBadges: tenant.showTrustBadges,
       whatsappNumber: tenant.whatsappNumber || '',
       currency: tenant.defaultCurrency,
       isActive: tenant.isActive,
+      theme: tenant.theme ? {
+        config: tenant.theme.config,
+        layoutConfig: tenant.theme.layoutConfig,
+        fontFamilyHeading: tenant.theme.fontFamilyHeading,
+        fontFamilyBody: tenant.theme.fontFamilyBody,
+      } : undefined,
     };
   }
 }

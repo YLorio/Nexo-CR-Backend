@@ -16,14 +16,13 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { PaymentMethod } from '@prisma/client';
 
 /**
  * DTO para un item del pedido
  */
 export class CreateOrderItemDto {
   @ApiProperty({ description: 'ID del producto o servicio' })
-  @IsUUID('4', { message: 'productId debe ser un UUID válido' })
+  @IsString({ message: 'productId debe ser un string válido' })
   @IsNotEmpty({ message: 'productId es requerido' })
   productId: string;
 
@@ -52,13 +51,43 @@ export class CreateOrderItemDto {
 }
 
 /**
+ * DTO para dirección de envío
+ */
+export class ShippingAddressDto {
+  @ApiProperty({ description: 'Provincia', example: '1' })
+  @IsString({ message: 'provincia debe ser un string válido' })
+  @IsNotEmpty({ message: 'provincia es requerida' })
+  provincia: string;
+
+  @ApiProperty({ description: 'Cantón', example: '1-1' })
+  @IsString({ message: 'canton debe ser un string válido' })
+  @IsNotEmpty({ message: 'canton es requerido' })
+  canton: string;
+
+  @ApiProperty({ description: 'Distrito', example: '1-1-1' })
+  @IsString({ message: 'distrito debe ser un string válido' })
+  @IsNotEmpty({ message: 'distrito es requerido' })
+  distrito: string;
+
+  @ApiProperty({ description: 'Dirección exacta o señas', example: 'Frente al parque central, casa amarilla' })
+  @IsString({ message: 'detalles debe ser texto' })
+  @IsNotEmpty({ message: 'detalles es requerido' })
+  detalles: string;
+}
+
+/**
  * DTO para crear una orden
  */
 export class CreateOrderDto {
   @ApiProperty({ description: 'ID del tenant' })
-  @IsUUID('4', { message: 'tenantId debe ser un UUID válido' })
+  @IsString({ message: 'tenantId debe ser un string válido' })
   @IsNotEmpty({ message: 'tenantId es requerido' })
   tenantId: string;
+
+  @ApiPropertyOptional({ description: 'ID del usuario autenticado' })
+  @IsOptional()
+  @IsString({ message: 'userId debe ser un string válido' })
+  userId?: string;
 
   @ApiProperty({ description: 'Nombre del cliente' })
   @IsString({ message: 'customerName debe ser texto' })
@@ -85,12 +114,21 @@ export class CreateOrderDto {
 
   @ApiPropertyOptional({
     description: 'Método de pago',
-    enum: PaymentMethod,
-    default: PaymentMethod.SINPE_MOVIL,
+    enum: ['CASH', 'CARD', 'TRANSFER', 'SINPE_MOVIL', 'OTHER'],
+    default: 'SINPE_MOVIL',
   })
   @IsOptional()
-  @IsEnum(PaymentMethod, { message: 'paymentMethod debe ser SINPE_MOVIL, CASH, CARD, TRANSFER u OTHER' })
-  paymentMethod?: PaymentMethod;
+  @IsEnum(['CASH', 'CARD', 'TRANSFER', 'SINPE_MOVIL', 'OTHER'], { message: 'paymentMethod debe ser SINPE_MOVIL, CASH, CARD, TRANSFER u OTHER' })
+  paymentMethod?: 'CASH' | 'CARD' | 'TRANSFER' | 'SINPE_MOVIL' | 'OTHER';
+
+  @ApiPropertyOptional({
+    description: 'Dirección de envío (solo para productos físicos)',
+    type: ShippingAddressDto,
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ShippingAddressDto)
+  shippingAddress?: ShippingAddressDto;
 
   @ApiProperty({
     description: 'Lista de items del pedido',
@@ -163,10 +201,10 @@ export class CreatedOrderResponseDto {
   @ApiPropertyOptional()
   customerEmail: string | null;
 
-  @ApiProperty({ enum: ['PENDING_PAYMENT', 'PAID', 'COMPLETED', 'CANCELLED'] })
+  @ApiProperty({ enum: ['DRAFT', 'AWAITING_PAYMENT', 'APPROVED', 'COMPLETED', 'CANCELLED'] })
   status: string;
 
-  @ApiProperty({ enum: ['SINPE', 'CASH'], default: 'SINPE' })
+  @ApiProperty({ enum: ['SINPE_MOVIL', 'CASH', 'CARD', 'TRANSFER', 'OTHER'], default: 'SINPE_MOVIL' })
   paymentMethod: string;
 
   @ApiProperty()

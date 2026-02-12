@@ -9,15 +9,24 @@ export interface CreateOrderItemDTO {
   appointmentTime?: string;  // "HH:mm"
 }
 
-export type PaymentMethodType = 'SINPE' | 'CASH';
+export type PaymentMethodType = 'CASH' | 'CARD' | 'TRANSFER' | 'SINPE_MOVIL' | 'OTHER';
+
+export interface ShippingAddressDTO {
+  provincia: string;
+  canton: string;
+  distrito: string;
+  detalles: string;
+}
 
 export interface CreateOrderCommand {
   tenantId: string;
+  userId?: string;
   customerName: string;
   customerPhone: string;
   customerEmail?: string;
   customerNotes?: string;
   paymentMethod?: PaymentMethodType;
+  shippingAddress?: ShippingAddressDTO;
   items: CreateOrderItemDTO[];
 }
 

@@ -1,15 +1,15 @@
-import { IsString, IsUUID, IsDateString, IsNotEmpty } from 'class-validator';
+import { IsString, IsDateString, IsNotEmpty } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 /**
  * DTO para query params de GET /api/v1/booking/slots
  */
 export class GetAvailableSlotsQueryDto {
-  @IsUUID('4', { message: 'tenantId debe ser un UUID válido' })
+  @IsString({ message: 'tenantId debe ser un string válido' })
   @IsNotEmpty({ message: 'tenantId es requerido' })
   tenantId: string;
 
-  @IsUUID('4', { message: 'serviceId debe ser un UUID válido' })
+  @IsString({ message: 'serviceId debe ser un string válido' })
   @IsNotEmpty({ message: 'serviceId es requerido' })
   serviceId: string;
 

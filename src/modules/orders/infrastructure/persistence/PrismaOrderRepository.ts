@@ -16,14 +16,86 @@ export class PrismaOrderRepository extends BaseRepository implements IOrderRepos
   async save(order: Order): Promise<Order> {
     const client = this.getClient();
 
+    let customerProfileId = null;
+
+    if (order.userId) {
+      // Buscar o crear el perfil del cliente para este tenant
+      const profile = await client.customerProfile.upsert({
+        where: {
+          tenantId_userId: {
+            tenantId: order.tenantId,
+            userId: order.userId,
+          },
+        },
+        update: {},
+        create: {
+          tenantId: order.tenantId,
+          userId: order.userId,
+        },
+      });
+      customerProfileId = profile.id;
+    }
+
+    // Crear dirección si existe
+    let shippingAddressId = null;
+    if (order.shippingAddress) {
+      // Look up location IDs from names
+      const provincia = await client.provincia.findFirst({
+        where: { nombre: order.shippingAddress.provincia },
+      });
+
+      if (!provincia) {
+        throw new Error(`Provincia not found: ${order.shippingAddress.provincia}`);
+      }
+
+      const canton = await client.canton.findFirst({
+        where: {
+          nombre: order.shippingAddress.canton,
+          provinciaId: provincia.id,
+        },
+      });
+
+      if (!canton) {
+        throw new Error(`Cantón not found: ${order.shippingAddress.canton} in ${provincia.nombre}`);
+      }
+
+      const distrito = await client.distrito.findFirst({
+        where: {
+          nombre: order.shippingAddress.distrito,
+          cantonId: canton.id,
+        },
+      });
+
+      if (!distrito) {
+        throw new Error(`Distrito not found: ${order.shippingAddress.distrito} in ${canton.nombre}`);
+      }
+
+      const address = await client.address.create({
+        data: {
+          tenantId: order.tenantId,
+          provinciaId: provincia.id,
+          cantonId: canton.id,
+          distritoId: distrito.id,
+          streetAddress: order.shippingAddress.detalles,
+        },
+      });
+      shippingAddressId = address.id;
+    }
+
     // Crear la orden con sus items en una sola operación
     const created = await client.order.create({
       data: {
         id: order.id,
         tenantId: order.tenantId,
+        customerProfileId,
+        shippingAddressId,
         orderNumber: String(order.orderNumber),
+        customerName: order.customerName,
+        customerPhone: order.customerPhone,
+        customerEmail: order.customerEmail,
         status: order.status.value as PrismaOrderStatus,
         paymentMethod: order.paymentMethod as PrismaPaymentMethod,
+        paymentProofUrl: order.paymentProofUrl,
         subtotalCents: order.subtotalInCents,
         totalCents: order.totalInCents,
         customerNotes: order.customerNotes,
@@ -37,6 +109,7 @@ export class PrismaOrderRepository extends BaseRepository implements IOrderRepos
           create: order.items.map((item) => ({
             id: item.id,
             name: item.productName,
+            imageUrl: item.productImageUrl,
             serviceId: item.productIsService ? item.productId : null,
             variantId: item.productIsService ? null : item.productId,
             unitPriceInCents: item.unitPriceInCents,
@@ -47,6 +120,13 @@ export class PrismaOrderRepository extends BaseRepository implements IOrderRepos
       },
       include: {
         items: true,
+        shippingAddress: {
+          include: {
+            provincia: true,
+            canton: true,
+            distrito: true,
+          },
+        },
         customerProfile: {
           include: {
             user: { select: { firstName: true, lastName: true, email: true, phone: true } },
@@ -66,6 +146,13 @@ export class PrismaOrderRepository extends BaseRepository implements IOrderRepos
       where: { id },
       include: {
         items: true,
+        shippingAddress: {
+          include: {
+            provincia: true,
+            canton: true,
+            distrito: true,
+          },
+        },
         customerProfile: {
           include: {
             user: { select: { firstName: true, lastName: true, email: true, phone: true } },
@@ -95,6 +182,13 @@ export class PrismaOrderRepository extends BaseRepository implements IOrderRepos
       },
       include: {
         items: true,
+        shippingAddress: {
+          include: {
+            provincia: true,
+            canton: true,
+            distrito: true,
+          },
+        },
         customerProfile: {
           include: {
             user: { select: { firstName: true, lastName: true, email: true, phone: true } },
@@ -126,6 +220,36 @@ export class PrismaOrderRepository extends BaseRepository implements IOrderRepos
       },
       include: {
         items: true,
+        shippingAddress: true,
+        customerProfile: true, // Asegurar que traemos el perfil
+        shadowProfile: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: options?.limit,
+      skip: options?.offset,
+    });
+
+    return orders.map((order) => this.toDomainEntity(order));
+  }
+
+  async findByUserId(userId: string): Promise<Order[]> {
+    const client = this.getClient();
+
+    const orders = await client.order.findMany({
+      where: {
+        customerProfile: {
+          userId,
+        },
+      },
+      include: {
+        items: true,
+        shippingAddress: {
+          include: {
+            provincia: true,
+            canton: true,
+            distrito: true,
+          },
+        },
         customerProfile: {
           include: {
             user: { select: { firstName: true, lastName: true, email: true, phone: true } },
@@ -134,8 +258,6 @@ export class PrismaOrderRepository extends BaseRepository implements IOrderRepos
         shadowProfile: true,
       },
       orderBy: { createdAt: 'desc' },
-      take: options?.limit,
-      skip: options?.offset,
     });
 
     return orders.map((order) => this.toDomainEntity(order));
@@ -149,6 +271,7 @@ export class PrismaOrderRepository extends BaseRepository implements IOrderRepos
       data: {
         status: order.status.value as PrismaOrderStatus,
         internalNotes: order.internalNotes,
+        paymentProofUrl: order.paymentProofUrl,
         updatedAt: order.updatedAt,
         paidAt: order.paidAt,
         completedAt: order.completedAt,
@@ -156,11 +279,7 @@ export class PrismaOrderRepository extends BaseRepository implements IOrderRepos
       },
       include: {
         items: true,
-        customerProfile: {
-          include: {
-            user: { select: { firstName: true, lastName: true, email: true, phone: true } },
-          },
-        },
+        customerProfile: true,
         shadowProfile: true,
       },
     });
@@ -189,29 +308,13 @@ export class PrismaOrderRepository extends BaseRepository implements IOrderRepos
   }
 
   private toDomainEntity(prismaOrder: any): Order {
-    // Extraer nombre y datos del cliente
-    let customerName = 'Cliente';
-    let customerPhone = '';
-    let customerEmail: string | null = null;
-
-    if (prismaOrder.customerProfile?.user) {
-      const user = prismaOrder.customerProfile.user;
-      customerName = [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Cliente';
-      customerPhone = user.phone || '';
-      customerEmail = user.email || null;
-    } else if (prismaOrder.shadowProfile) {
-      const shadow = prismaOrder.shadowProfile;
-      customerName = [shadow.firstName, shadow.lastName].filter(Boolean).join(' ') || 'Cliente';
-      customerPhone = shadow.phone || '';
-      customerEmail = shadow.email || null;
-    }
-
     const items = prismaOrder.items.map((item: any) => {
       const props: OrderItemProps = {
         id: item.id,
         orderId: item.orderId,
         productId: item.serviceId || item.variantId || item.id,
         productName: item.name,
+        productImageUrl: item.imageUrl || null,
         productIsService: item.serviceId !== null,
         unitPriceInCents: item.unitPriceInCents,
         quantity: item.quantity,
@@ -225,14 +328,22 @@ export class PrismaOrderRepository extends BaseRepository implements IOrderRepos
     return new Order({
       id: prismaOrder.id,
       tenantId: prismaOrder.tenantId,
+      userId: prismaOrder.customerProfile?.userId || null,
       orderNumber: parseInt(prismaOrder.orderNumber, 10) || 0,
-      customerName,
-      customerPhone,
-      customerEmail,
+      customerName: prismaOrder.customerName,
+      customerPhone: prismaOrder.customerPhone,
+      customerEmail: prismaOrder.customerEmail,
       status: prismaOrder.status as OrderStatusEnum,
       paymentMethod: prismaOrder.paymentMethod,
+      paymentProofUrl: prismaOrder.paymentProofUrl,
       customerNotes: prismaOrder.customerNotes,
       internalNotes: prismaOrder.internalNotes,
+      shippingAddress: prismaOrder.shippingAddress ? {
+        provincia: prismaOrder.shippingAddress.provincia.nombre,
+        canton: prismaOrder.shippingAddress.canton.nombre,
+        distrito: prismaOrder.shippingAddress.distrito.nombre,
+        detalles: prismaOrder.shippingAddress.streetAddress,
+      } : null,
       createdAt: prismaOrder.createdAt,
       updatedAt: prismaOrder.updatedAt,
       paidAt: prismaOrder.paidAt,

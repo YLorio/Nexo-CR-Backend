@@ -28,6 +28,7 @@ import { AdminCatalogService } from '../../application/admin-catalog.service';
 import { AdminOrdersService } from '../../application/admin-orders.service';
 import { AdminSettingsService } from '../../application/admin-settings.service';
 import { AdminStaffService } from '../../application/admin-staff.service';
+import { AdminPagesService } from '../../application/admin-pages.service';
 import { SupabaseStorageService } from '../../../storage/supabase-storage.service';
 import { EmployeeWithServices } from '../../application/admin-staff.service';
 import {
@@ -37,6 +38,9 @@ import {
   ListOrdersQueryDto,
   UpdateOrderStatusDto,
   UpdateSettingsDto,
+  CreateCategoryDto,
+  UpdateCategoryDto,
+  ReorderCategoriesDto,
   CreateEmployeeDto,
   UpdateEmployeeDto,
   SetAvailabilityDto,
@@ -62,6 +66,7 @@ export class AdminController {
     private readonly ordersService: AdminOrdersService,
     private readonly settingsService: AdminSettingsService,
     private readonly staffService: AdminStaffService,
+    private readonly pagesService: AdminPagesService,
     private readonly storageService: SupabaseStorageService,
   ) {}
 
@@ -137,11 +142,19 @@ export class AdminController {
   // ==================== CATEGORÍAS ====================
 
   @Get('categories')
-  @ApiOperation({ summary: 'Listar categorías' })
+  @ApiOperation({ summary: 'Listar categorías (plano)' })
   @ApiResponse({ status: 200, description: 'Lista de categorías' })
   async listCategories(@CurrentUser() user: AuthenticatedUser) {
     const tenantId = this.getTenantId(user);
     return this.catalogService.listCategories(tenantId);
+  }
+
+  @Get('categories/tree')
+  @ApiOperation({ summary: 'Obtener árbol jerárquico de categorías' })
+  @ApiResponse({ status: 200, description: 'Árbol de categorías' })
+  async getCategoryTree(@CurrentUser() user: AuthenticatedUser) {
+    const tenantId = this.getTenantId(user);
+    return this.catalogService.getCategoryTree(tenantId);
   }
 
   @Post('categories')
@@ -150,10 +163,46 @@ export class AdminController {
   @ApiResponse({ status: 201, description: 'Categoría creada' })
   async createCategory(
     @CurrentUser() user: AuthenticatedUser,
-    @Body() body: { name: string; description?: string },
+    @Body() dto: CreateCategoryDto,
   ) {
     const tenantId = this.getTenantId(user);
-    return this.catalogService.createCategory(tenantId, body.name, body.description);
+    return this.catalogService.createCategoryHierarchy(tenantId, dto);
+  }
+
+  @Patch('categories/:id')
+  @ApiOperation({ summary: 'Actualizar categoría' })
+  @ApiResponse({ status: 200, description: 'Categoría actualizada' })
+  async updateCategory(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateCategoryDto,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.catalogService.updateCategory(tenantId, id, dto);
+  }
+
+  @Delete('categories/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Eliminar categoría' })
+  @ApiResponse({ status: 204, description: 'Categoría eliminada' })
+  async deleteCategory(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    const tenantId = this.getTenantId(user);
+    await this.catalogService.deleteCategory(tenantId, id);
+  }
+
+  @Post('categories/reorder')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reordenar categorías' })
+  async reorderCategories(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ReorderCategoriesDto,
+  ) {
+    const tenantId = this.getTenantId(user);
+    await this.catalogService.reorderCategories(tenantId, dto);
+    return { message: 'Categorías reordenadas correctamente' };
   }
 
   // ==================== ÓRDENES ====================
@@ -175,6 +224,17 @@ export class AdminController {
   async getKanbanOrders(@CurrentUser() user: AuthenticatedUser) {
     const tenantId = this.getTenantId(user);
     return this.ordersService.getOrdersForKanban(tenantId);
+  }
+
+  @Get('orders/:id')
+  @ApiOperation({ summary: 'Obtener una orden por ID' })
+  @ApiResponse({ status: 200, description: 'Detalle de la orden' })
+  async getOrderById(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.ordersService.getOrderById(tenantId, id);
   }
 
   @Patch('orders/:id/status')
@@ -210,6 +270,17 @@ export class AdminController {
     return this.settingsService.updateSettings(tenantId, dto);
   }
 
+  @Patch('settings/theme/layout')
+  @ApiOperation({ summary: 'Actualizar configuración del layout del tema (Header/Footer)' })
+  @ApiResponse({ status: 200, description: 'Layout actualizado' })
+  async updateThemeLayout(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { layoutConfig: any },
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.settingsService.updateThemeLayout(tenantId, body.layoutConfig);
+  }
+
   // ==================== UPLOAD DE IMÁGENES ====================
 
   @Post('upload/product-image')
@@ -236,6 +307,36 @@ export class AdminController {
     }
 
     const result = await this.storageService.uploadFile(file, 'products');
+    return { url: result.url };
+  }
+
+  @Post('upload/category-image')
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiOperation({ summary: 'Subir imagen de categoría' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        image: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Imagen subida correctamente' })
+  async uploadCategoryImage(
+    @CurrentUser() user: AuthenticatedUser,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    this.getTenantId(user); // Verificar que tiene tenant
+
+    if (!file) {
+      throw new BadRequestException('No se proporcionó ninguna imagen');
+    }
+
+    const result = await this.storageService.uploadFile(file, 'categories', {
+      maxWidth: 600,
+      maxHeight: 600,
+    });
     return { url: result.url };
   }
 
@@ -435,5 +536,25 @@ export class AdminController {
       maxHeight: 400,
     });
     return { url: result.url };
+  }
+
+  // ==================== PÁGINAS (BUILDER) ====================
+
+  @Get('pages/home')
+  @ApiOperation({ summary: 'Obtener configuración de la página de inicio' })
+  async getHomePage(@CurrentUser() user: AuthenticatedUser) {
+    const tenantId = this.getTenantId(user);
+    return this.pagesService.getHomePageConfig(tenantId);
+  }
+
+  @Patch('pages/home')
+  @ApiOperation({ summary: 'Actualizar configuración de la página de inicio' })
+  @ApiBody({ schema: { type: 'object' } }) // Generic JSON body
+  async updateHomePage(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() config: any,
+  ) {
+    const tenantId = this.getTenantId(user);
+    return this.pagesService.updateHomePageConfig(tenantId, config);
   }
 }

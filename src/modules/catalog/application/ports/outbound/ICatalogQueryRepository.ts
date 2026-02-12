@@ -16,10 +16,12 @@ export interface ProductInfo {
   name: string;
   description: string | null;
   imageUrl: string | null;
+  imageUrls: string[];
   priceInCents: number;
   isService: boolean;
   durationMinutes: number | null;
   stock: number;
+  trackInventory: boolean;
   categoryId: string | null;
   categoryName: string | null;
   sortOrder: number;

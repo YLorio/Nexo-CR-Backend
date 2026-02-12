@@ -9,6 +9,7 @@ export interface OrderItemProps {
   orderId: string;
   productId: string;
   productName: string;
+  productImageUrl?: string | null;
   productIsService: boolean;
   unitPriceInCents: number;
   quantity: number;
@@ -34,6 +35,7 @@ export class OrderItem {
   readonly orderId: string;
   readonly productId: string;
   readonly productName: string;
+  readonly productImageUrl: string | null;
   readonly productIsService: boolean;
   readonly unitPriceInCents: number;
   readonly quantity: number;
@@ -46,6 +48,7 @@ export class OrderItem {
     this.orderId = props.orderId;
     this.productId = props.productId;
     this.productName = props.productName;
+    this.productImageUrl = props.productImageUrl ?? null;
     this.productIsService = props.productIsService;
     this.unitPriceInCents = props.unitPriceInCents;
     this.quantity = props.quantity;

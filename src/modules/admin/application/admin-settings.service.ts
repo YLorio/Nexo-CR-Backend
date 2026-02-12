@@ -16,6 +16,7 @@ export class AdminSettingsService {
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
       include: {
+        theme: true,
         banners: {
           where: { isActive: true },
           orderBy: { sortOrder: 'asc' },
@@ -35,13 +36,23 @@ export class AdminSettingsService {
       id: tenant.id,
       name: tenant.name,
       slug: tenant.slug,
+      tagline: tenant.tagline,
       whatsappNumber: tenant.whatsappNumber,
       email: tenant.email,
       primaryColor: tenant.primaryColor,
       accentColor: tenant.accentColor,
+      backgroundColor: tenant.backgroundColor,
+      trustBadges: tenant.trustBadges as any,
+      showTrustBadges: tenant.showTrustBadges,
       logoUrl: tenant.logo,
       bannerUrls,
       currency: tenant.defaultCurrency,
+      theme: tenant.theme ? {
+        config: tenant.theme.config,
+        layoutConfig: tenant.theme.layoutConfig,
+        fontFamilyHeading: tenant.theme.fontFamilyHeading,
+        fontFamilyBody: tenant.theme.fontFamilyBody,
+      } : undefined,
     };
   }
 
@@ -52,10 +63,14 @@ export class AdminSettingsService {
     tenantId: string,
     data: {
       name?: string;
+      tagline?: string;
       whatsappNumber?: string;
       email?: string;
       primaryColor?: string;
       accentColor?: string;
+      backgroundColor?: string;
+      trustBadges?: any[];
+      showTrustBadges?: boolean;
       logoUrl?: string;
       bannerUrls?: string[];
     },
@@ -97,10 +112,14 @@ export class AdminSettingsService {
       where: { id: tenantId },
       data: {
         ...(data.name && { name: data.name }),
+        ...(data.tagline !== undefined && { tagline: data.tagline || null }),
         ...(data.whatsappNumber && { whatsappNumber: data.whatsappNumber }),
         ...(data.email !== undefined && { email: data.email || null }),
         ...(data.primaryColor && { primaryColor: data.primaryColor }),
         ...(data.accentColor && { accentColor: data.accentColor }),
+        ...(data.backgroundColor && { backgroundColor: data.backgroundColor }),
+        ...(data.trustBadges !== undefined && { trustBadges: data.trustBadges }),
+        ...(data.showTrustBadges !== undefined && { showTrustBadges: data.showTrustBadges }),
         ...(data.logoUrl !== undefined && { logo: data.logoUrl || null }),
       },
       include: {
@@ -116,10 +135,14 @@ export class AdminSettingsService {
       id: updated.id,
       name: updated.name,
       slug: updated.slug,
+      tagline: updated.tagline,
       whatsappNumber: updated.whatsappNumber,
       email: updated.email,
       primaryColor: updated.primaryColor,
       accentColor: updated.accentColor,
+      backgroundColor: updated.backgroundColor,
+      trustBadges: updated.trustBadges as any,
+      showTrustBadges: updated.showTrustBadges,
       logoUrl: updated.logo,
       bannerUrls: updated.banners.map(b => b.imageUrl),
       currency: updated.defaultCurrency,
@@ -186,5 +209,32 @@ export class AdminSettingsService {
     }
 
     return { bannerUrls: remainingBanners.map(b => b.imageUrl) };
+  }
+
+  /**
+   * Actualiza la configuración de layout del tema (Header/Footer)
+   */
+  async updateThemeLayout(tenantId: string, layoutConfig: any) {
+    const theme = await this.prisma.tenantTheme.findUnique({
+      where: { tenantId },
+    });
+
+    if (!theme) {
+      // Si no existe el tema, lo creamos con valores por defecto
+      return this.prisma.tenantTheme.create({
+        data: {
+          tenantId,
+          layoutConfig,
+          config: {}, // Valores por defecto
+        },
+      });
+    }
+
+    return this.prisma.tenantTheme.update({
+      where: { tenantId },
+      data: {
+        layoutConfig,
+      },
+    });
   }
 }

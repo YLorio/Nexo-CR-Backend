@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { DayOfWeek } from '@prisma/client';
+import { DayOfWeek, CategoryScope } from '@prisma/client';
 import {
   CreateCatalogItemDto,
   UpdateCatalogItemDto,
@@ -8,6 +8,9 @@ import {
   CatalogItemResponseDto,
   ServiceScheduleBlockDto,
   ServiceScheduleResponseDto,
+  CreateCategoryDto,
+  UpdateCategoryDto,
+  ReorderCategoriesDto,
 } from '../infrastructure/http/dto';
 
 interface CatalogItem {
@@ -23,6 +26,7 @@ interface CatalogItem {
   stock: number;
   durationMinutes: number | null;
   sku: string | null;
+  trackInventory: boolean;
   isActive: boolean;
   sortOrder: number;
   schedules?: ServiceScheduleResponseDto[];
@@ -85,7 +89,7 @@ export class AdminCatalogService {
         const primaryImage = item.images.find((img) => img.isPrimary)?.imageUrl || imageUrls[0] || null;
 
         items.push({
-          id: item.id,
+          id: item.id, // ID del InventoryItem para edición/gestión en admin
           name: item.name,
           description: item.description,
           priceInCents: defaultVariant?.priceInCents ?? 0,
@@ -97,6 +101,7 @@ export class AdminCatalogService {
           stock: defaultVariant?.stock ?? 0,
           durationMinutes: null,
           sku: defaultVariant?.sku ?? null,
+          trackInventory: defaultVariant?.trackInventory ?? true,
           isActive: item.isActive,
           sortOrder: 0,
           createdAt: item.createdAt,
@@ -178,6 +183,7 @@ export class AdminCatalogService {
           stock: 0,
           durationMinutes: service.durationMinutes,
           sku: null,
+          trackInventory: false,
           isActive: service.isActive,
           sortOrder: 0,
           schedules,
@@ -294,6 +300,7 @@ export class AdminCatalogService {
         stock: 0,
         durationMinutes: service.durationMinutes,
         sku: null,
+        trackInventory: false,
         isActive: service.isActive,
         sortOrder: 0,
         schedules,
@@ -334,6 +341,7 @@ export class AdminCatalogService {
               sku: dto.sku || `SKU-${Date.now()}`,
               priceInCents: dto.priceInCents,
               stock: dto.stock ?? 0,
+              trackInventory: dto.trackInventory ?? true,
               isDefault: true,
               isActive: true,
             },
@@ -362,6 +370,7 @@ export class AdminCatalogService {
         stock: defaultVariant?.stock ?? 0,
         durationMinutes: null,
         sku: defaultVariant?.sku ?? null,
+        trackInventory: defaultVariant?.trackInventory ?? true,
         isActive: inventoryItem.isActive,
         sortOrder: 0,
         createdAt: inventoryItem.createdAt,
@@ -466,6 +475,17 @@ export class AdminCatalogService {
         ...(dto.description !== undefined && { description: dto.description }),
         ...(dto.categoryId !== undefined && { categoryId: dto.categoryId }),
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+        // Actualizar imagenes si se proporcionan
+        ...(dto.imageUrls !== undefined && {
+          images: {
+            deleteMany: {},
+            create: dto.imageUrls.map((url, index) => ({
+              imageUrl: url,
+              sortOrder: index,
+              isPrimary: index === 0,
+            })),
+          },
+        }),
       },
       include: {
         category: { select: { name: true } },
@@ -474,8 +494,8 @@ export class AdminCatalogService {
       },
     });
 
-    // Actualizar variante por defecto si hay cambios de precio/stock/sku
-    if (dto.priceInCents !== undefined || dto.stock !== undefined || dto.sku !== undefined) {
+    // Actualizar variante por defecto si hay cambios de precio/stock/sku/trackInventory
+    if (dto.priceInCents !== undefined || dto.stock !== undefined || dto.sku !== undefined || dto.trackInventory !== undefined) {
       const defaultVariant = existing.variants[0];
       if (defaultVariant) {
         await this.prisma.productVariant.update({
@@ -484,6 +504,7 @@ export class AdminCatalogService {
             ...(dto.priceInCents !== undefined && { priceInCents: dto.priceInCents }),
             ...(dto.stock !== undefined && { stock: dto.stock }),
             ...(dto.sku !== undefined && { sku: dto.sku }),
+            ...(dto.trackInventory !== undefined && { trackInventory: dto.trackInventory }),
           },
         });
       }
@@ -515,6 +536,7 @@ export class AdminCatalogService {
       stock: defaultVariant?.stock ?? 0,
       durationMinutes: null,
       sku: defaultVariant?.sku ?? null,
+      trackInventory: defaultVariant?.trackInventory ?? true,
       isActive: finalItem!.isActive,
       sortOrder: 0,
       createdAt: finalItem!.createdAt,
@@ -542,25 +564,6 @@ export class AdminCatalogService {
       await this.validateScheduleStaff(tenantId, dto.schedules);
     }
 
-    // Actualizar horarios si se proporcionan
-    if (dto.schedules !== undefined) {
-      await this.prisma.serviceTimeSlot.deleteMany({
-        where: { serviceId: itemId },
-      });
-
-      if (dto.schedules.length > 0) {
-        await this.prisma.serviceTimeSlot.createMany({
-          data: dto.schedules.map((s) => ({
-            serviceId: itemId,
-            dayOfWeek: s.dayOfWeek as DayOfWeek,
-            startTime: s.startTime,
-            endTime: s.endTime,
-            capacityOverride: s.capacity,
-          })),
-        });
-      }
-    }
-
     const updated = await this.prisma.serviceDefinition.update({
       where: { id: itemId },
       data: {
@@ -570,6 +573,29 @@ export class AdminCatalogService {
         ...(dto.categoryId !== undefined && { categoryId: dto.categoryId }),
         ...(dto.durationMinutes !== undefined && { durationMinutes: dto.durationMinutes }),
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+        // Actualizar horarios si se proporcionan
+        ...(dto.schedules !== undefined && {
+          timeSlots: {
+            deleteMany: {},
+            create: dto.schedules.map((s) => ({
+              dayOfWeek: s.dayOfWeek as DayOfWeek,
+              startTime: s.startTime,
+              endTime: s.endTime,
+              capacityOverride: s.capacity,
+            })),
+          },
+        }),
+        // Actualizar imagenes si se proporcionan
+        ...(dto.imageUrls !== undefined && {
+          images: {
+            deleteMany: {},
+            create: dto.imageUrls.map((url, index) => ({
+              imageUrl: url,
+              sortOrder: index,
+              isPrimary: index === 0,
+            })),
+          },
+        }),
       },
       include: {
         category: { select: { name: true } },
@@ -603,6 +629,7 @@ export class AdminCatalogService {
       stock: 0,
       durationMinutes: updated.durationMinutes,
       sku: null,
+      trackInventory: false,
       isActive: updated.isActive,
       sortOrder: 0,
       schedules,
@@ -649,13 +676,18 @@ export class AdminCatalogService {
    */
   async listCategories(tenantId: string) {
     return this.prisma.category.findMany({
-      where: { tenantId, deletedAt: null, isVisible: true },
+      where: { tenantId, deletedAt: null },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
       select: {
         id: true,
         name: true,
         description: true,
         imageUrl: true,
+        parentId: true,
+        path: true,
+        depth: true,
+        sortOrder: true,
+        isVisible: true,
         _count: {
           select: {
             inventoryItems: true,
@@ -667,19 +699,177 @@ export class AdminCatalogService {
   }
 
   /**
-   * Crea una categoría
+   * Obtiene el árbol completo de categorías
    */
-  async createCategory(tenantId: string, name: string, description?: string) {
-    const slug = this.generateSlug(name);
+  async getCategoryTree(tenantId: string) {
+    const categories = await this.prisma.category.findMany({
+      where: { tenantId, deletedAt: null },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        imageUrl: true,
+        parentId: true,
+        path: true,
+        depth: true,
+        sortOrder: true,
+        isVisible: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: {
+            inventoryItems: true,
+            serviceDefinitions: true,
+          },
+        },
+      },
+    });
+
+    return this.buildTree(categories);
+  }
+
+  private buildTree(categories: any[], parentId: string | null = null): any[] {
+    return categories
+      .filter((cat) => cat.parentId === parentId)
+      .map((cat) => ({
+        ...cat,
+        children: this.buildTree(categories, cat.id),
+      }));
+  }
+
+  /**
+   * Crea una categoría con soporte jerárquico
+   */
+  async createCategoryHierarchy(tenantId: string, dto: CreateCategoryDto) {
+    const slug = this.generateSlug(dto.name);
+    let path = slug;
+    let depth = 0;
+
+    if (dto.parentId) {
+      const parent = await this.prisma.category.findFirst({
+        where: { id: dto.parentId, tenantId, deletedAt: null },
+      });
+
+      if (!parent) {
+        throw new NotFoundException('Categoría padre no encontrada');
+      }
+
+      path = `${parent.path}/${slug}`;
+      depth = parent.depth + 1;
+    }
 
     return this.prisma.category.create({
       data: {
         tenantId,
-        name,
+        name: dto.name,
         slug,
-        path: slug, // Materialized path - root level
-        description,
+        description: dto.description,
+        parentId: dto.parentId,
+        imageUrl: dto.imageUrl,
+        sortOrder: dto.sortOrder || 0,
+        path,
+        depth,
+        scope: CategoryScope.BOTH,
       },
     });
+  }
+
+  /**
+   * Actualiza una categoría
+   */
+  async updateCategory(tenantId: string, id: string, dto: UpdateCategoryDto) {
+    const category = await this.prisma.category.findFirst({
+      where: { id, tenantId, deletedAt: null },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Categoría no encontrada');
+    }
+
+    let path = category.path;
+    let depth = category.depth;
+
+    if (dto.parentId !== undefined && dto.parentId !== category.parentId) {
+      if (dto.parentId === null) {
+        path = category.slug;
+        depth = 0;
+      } else {
+        const parent = await this.prisma.category.findFirst({
+          where: { id: dto.parentId, tenantId, deletedAt: null },
+        });
+
+        if (!parent) {
+          throw new NotFoundException('Categoría padre no encontrada');
+        }
+
+        path = `${parent.path}/${category.slug}`;
+        depth = parent.depth + 1;
+      }
+      // TODO: Actualizar recursivamente el path de los hijos si esto fuera una app de gran escala
+    }
+
+    return this.prisma.category.update({
+      where: { id },
+      data: {
+        ...(dto.name && { name: dto.name }),
+        ...(dto.description !== undefined && { description: dto.description }),
+        ...(dto.parentId !== undefined && { parentId: dto.parentId }),
+        ...(dto.imageUrl !== undefined && { imageUrl: dto.imageUrl }),
+        ...(dto.sortOrder !== undefined && { sortOrder: dto.sortOrder }),
+        ...(dto.isVisible !== undefined && { isVisible: dto.isVisible }),
+        path,
+        depth,
+      },
+    });
+  }
+
+  /**
+   * Elimina una categoría
+   */
+  async deleteCategory(tenantId: string, id: string) {
+    const category = await this.prisma.category.findFirst({
+      where: { id, tenantId, deletedAt: null },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Categoría no encontrada');
+    }
+
+    // Verificar si tiene hijos
+    const hasChildren = await this.prisma.category.count({
+      where: { parentId: id, deletedAt: null },
+    });
+
+    if (hasChildren > 0) {
+      throw new BadRequestException('No se puede eliminar una categoría que tiene subcategorías');
+    }
+
+    return this.prisma.category.update({
+      where: { id },
+      data: { deletedAt: new Date(), isVisible: false },
+    });
+  }
+
+  /**
+   * Reordena categorías
+   */
+  async reorderCategories(tenantId: string, dto: ReorderCategoriesDto) {
+    for (const item of dto.categories) {
+      await this.prisma.category.updateMany({
+        where: { id: item.id, tenantId },
+        data: {
+          sortOrder: item.sortOrder,
+          ...(item.parentId !== undefined && { parentId: item.parentId }),
+        },
+      });
+    }
+  }
+
+  /**
+   * Crea una categoría (LEGACY - mantener para compatibilidad si es necesario)
+   */
+  async createCategory(tenantId: string, name: string, description?: string) {
+    return this.createCategoryHierarchy(tenantId, { name, description });
   }
 }

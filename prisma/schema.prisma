@@ -122,6 +122,7 @@ model Tenant {
   id                  String    @id @default(cuid())
   slug                String    @unique @db.VarChar(100)
   name                String    @db.VarChar(255)
+  tagline             String?   @db.VarChar(500)
   legalName           String?   @db.VarChar(255)
   taxId               String?   @db.VarChar(50)
 
@@ -129,6 +130,9 @@ model Tenant {
   logo                String?   @db.VarChar(500)
   primaryColor        String    @default("#6366f1") @db.VarChar(7)
   accentColor         String    @default("#f59e0b") @db.VarChar(7)
+  backgroundColor     String    @default("#ffffff") @db.VarChar(7)
+  trustBadges         Json?     // Stores array of { icon: string, title: string, subtitle: string }
+  showTrustBadges     Boolean   @default(true)
 
   // Contact
   email               String?   @db.VarChar(255)
@@ -140,6 +144,9 @@ model Tenant {
   defaultCurrency     Currency  @default(CRC)
   timezone            String    @default("America/Costa_Rica") @db.VarChar(50)
   planType            PlanType  @default(FREE)
+
+  // Kanban Configuration
+  kanbanConfig        Json?     // Stores custom columns: [{ status: string, label: string, visible: boolean, index: number }]
 
   // Checkout & Order Settings
   allowGuestCheckout  Boolean   @default(true)
@@ -156,6 +163,7 @@ model Tenant {
   deletedAt           DateTime?
 
   // Relations
+  theme               TenantTheme?
   banners             TenantBanner[]
   categories          Category[]
   customerProfiles    CustomerProfile[]
@@ -165,6 +173,7 @@ model Tenant {
   staff               TenantStaff[]
   addresses           Address[]
   orderCounter        TenantOrderCounter?
+  pages               PageConfig[]
 
   @@index([slug])
   @@index([isActive])
@@ -197,6 +206,72 @@ model TenantBanner {
 }
 
 // ============================================================================
+// STOREFRONT: DYNAMIC PAGES
+// ============================================================================
+
+model PageConfig {
+  id              String   @id @default(cuid())
+  tenantId        String
+  slug            String   @db.VarChar(100)
+  title           String   @db.VarChar(255)
+  description     String?  @db.VarChar(500)
+  
+  // Page Structure (JSON)
+  // Evolves to support Draft/Published workflow
+  draftConfig     Json?    
+  publishedConfig Json?    
+  
+  // For backward compatibility during migration
+  config          Json?
+
+  // Status
+  isActive        Boolean   @default(true)
+  isHome          Boolean   @default(false)
+  lastPublishedAt DateTime?
+
+  // Audit
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, isHome])
+  @@map("page_configs")
+}
+
+// ============================================================================
+// STOREFRONT: THEME & DESIGN TOKENS
+// ============================================================================
+
+model TenantTheme {
+  id                String   @id @default(cuid())
+  tenantId          String   @unique
+
+  // Design Tokens (JSON)
+  // { colors: {...}, typography: {...}, ui: {...} }
+  config            Json
+
+  // Layout Configuration (JSON)
+  // { header: {...}, footer: {...} }
+  layoutConfig      Json?
+
+  // Font Metadata
+  fontFamilyHeading String   @default("Inter") @db.VarChar(100)
+  fontFamilyBody    String   @default("Inter") @db.VarChar(100)
+
+  // Audit
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_themes")
+}
+
+// ============================================================================
 // IDENTITY: USER (Global Platform Identity)
 // Single source of truth for authentication across all tenants
 // ============================================================================
@@ -204,7 +279,7 @@ model TenantBanner {
 model User {
   id                  String     @id @default(cuid())
   email               String     @unique @db.VarChar(255)
-  phone               String?    @unique @db.VarChar(20)
+  phone               String?    @db.VarChar(20)
   passwordHash        String?    @db.VarChar(255)
 
   // Profile
@@ -238,6 +313,7 @@ model User {
   staffAssignments    TenantStaff[]
   waitlistRequests    WaitlistRequest[]
   bookings            Booking[]
+  addresses           UserAddress[]
 
   @@index([email])
   @@index([phone])
@@ -924,7 +1000,12 @@ model Order {
   tenantId            String
   orderNumber         String        @db.VarChar(50)
 
-  // Customer Identity (ONE must be set)
+  // Customer Snapshot (Data at time of order)
+  customerName        String        @db.VarChar(255)
+  customerPhone       String        @db.VarChar(50)
+  customerEmail       String?       @db.VarChar(255)
+
+  // Customer Identity (ONE must be set for registered/tracked users)
   customerProfileId   String?
   shadowProfileId     String?
 
@@ -958,6 +1039,7 @@ model Order {
   paidAt              DateTime?
   paidAmountCents     Int           @default(0)
   paymentReference    String?       @db.VarChar(255)
+  paymentProofUrl     String?       @db.VarChar(500)
 
   // Fulfillment
   shippingAddressId   String?
@@ -1046,6 +1128,111 @@ model OrderItem {
 }
 
 // ============================================================================
+// LOCATIONS: COSTA RICA ADMINISTRATIVE DIVISIONS
+// ============================================================================
+
+model Provincia {
+  id                  String        @id @db.VarChar(10)
+  nombre              String        @db.VarChar(100)
+  sortOrder           Int           @default(0)
+
+  // Audit
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  // Relations
+  cantones            Canton[]
+  addresses           Address[]
+  userAddresses       UserAddress[]
+
+  @@map("provincias")
+}
+
+model Canton {
+  id                  String        @id @db.VarChar(10)
+  provinciaId         String        @db.VarChar(10)
+  nombre              String        @db.VarChar(100)
+  sortOrder           Int           @default(0)
+
+  // Audit
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  // Relations
+  provincia           Provincia     @relation(fields: [provinciaId], references: [id], onDelete: Cascade)
+  distritos           Distrito[]
+  addresses           Address[]
+  userAddresses       UserAddress[]
+
+  @@index([provinciaId])
+  @@map("cantones")
+}
+
+model Distrito {
+  id                  String        @id @db.VarChar(10)
+  cantonId            String        @db.VarChar(10)
+  nombre              String        @db.VarChar(100)
+  sortOrder           Int           @default(0)
+
+  // Audit
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  // Relations
+  canton              Canton        @relation(fields: [cantonId], references: [id], onDelete: Cascade)
+  addresses           Address[]
+  userAddresses       UserAddress[]
+
+  @@index([cantonId])
+  @@map("distritos")
+}
+
+// ============================================================================
+// USER ADDRESSES (User's saved addresses)
+// ============================================================================
+
+model UserAddress {
+  id                  String    @id @default(cuid())
+  userId              String
+
+  // Label
+  label               String?   @db.VarChar(50)
+
+  // Costa Rica Address - IDs reference location tables
+  provinciaId         String    @db.VarChar(10)
+  cantonId            String    @db.VarChar(10)
+  distritoId          String    @db.VarChar(10)
+  streetAddress       String    @db.VarChar(500)
+  additionalInfo      String?   @db.VarChar(500)
+
+  // Contact (optional override)
+  contactName         String?   @db.VarChar(100)
+  contactPhone        String?   @db.VarChar(20)
+
+  // Flags
+  isDefault           Boolean   @default(false)
+
+  // Audit
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
+
+  // Relations
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provincia           Provincia @relation(fields: [provinciaId], references: [id])
+  canton              Canton    @relation(fields: [cantonId], references: [id])
+  distrito            Distrito  @relation(fields: [distritoId], references: [id])
+
+  @@index([userId])
+  @@index([userId, isDefault])
+  @@index([provinciaId])
+  @@index([cantonId])
+  @@index([distritoId])
+  @@index([deletedAt])
+  @@map("user_addresses")
+}
+
+// ============================================================================
 // SUPPORTING: ADDRESS (Costa Rica-specific)
 // ============================================================================
 
@@ -1056,10 +1243,10 @@ model Address {
   // Label
   label               String?   @db.VarChar(50)
 
-  // Costa Rica Address
-  province            String    @db.VarChar(50)
-  canton              String    @db.VarChar(100)
-  district            String    @db.VarChar(100)
+  // Costa Rica Address - IDs reference location tables
+  provinciaId         String    @db.VarChar(10)
+  cantonId            String    @db.VarChar(10)
+  distritoId          String    @db.VarChar(10)
   streetAddress       String    @db.VarChar(500)
   additionalInfo      String?   @db.VarChar(500)
   postalCode          String?   @db.VarChar(20)
@@ -1082,11 +1269,17 @@ model Address {
 
   // Relations
   tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  provincia           Provincia @relation(fields: [provinciaId], references: [id])
+  canton              Canton    @relation(fields: [cantonId], references: [id])
+  distrito            Distrito  @relation(fields: [distritoId], references: [id])
   shippingOrders      Order[]   @relation("ShippingAddress")
   billingOrders       Order[]   @relation("BillingAddress")
 
   @@index([tenantId])
   @@index([tenantId, isDefault])
+  @@index([provinciaId])
+  @@index([cantonId])
+  @@index([distritoId])
   @@index([deletedAt])
   @@map("addresses")
 }

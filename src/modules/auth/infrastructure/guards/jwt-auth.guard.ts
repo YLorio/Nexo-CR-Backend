@@ -10,16 +10,31 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   }
 
   canActivate(context: ExecutionContext) {
-    // Verificar si la ruta es pública
+    // Siempre intentamos autenticar para poblar request.user si hay token
+    return super.canActivate(context);
+  }
+
+  handleRequest(err: any, user: any, info: any, context: ExecutionContext) {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
 
-    if (isPublic) {
-      return true;
+    // Si hay usuario (autenticado exitosamente), lo retornamos
+    if (user) {
+      return user;
     }
 
-    return super.canActivate(context);
+    // Si es pública, permitimos el acceso aunque no haya usuario o haya error
+    if (isPublic) {
+      return null;
+    }
+
+    // Si no es pública y no hay usuario, lanzamos error (comportamiento default)
+    if (err || !user) {
+      throw err || new Error('Unauthorized'); // NestJS AuthGuard throws proper UnauthorizedException usually
+    }
+
+    return user;
   }
 }

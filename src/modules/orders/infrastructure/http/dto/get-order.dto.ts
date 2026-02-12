@@ -1,11 +1,11 @@
-import { IsUUID, IsNotEmpty } from 'class-validator';
+import { IsString, IsNotEmpty } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 /**
  * DTO para parámetros de ruta
  */
 export class OrderParamsDto {
-  @IsUUID('4', { message: 'id debe ser un UUID válido' })
+  @IsString({ message: 'id debe ser un string válido' })
   @IsNotEmpty({ message: 'id es requerido' })
   id: string;
 }
@@ -14,7 +14,7 @@ export class OrderParamsDto {
  * DTO para query params de GET /orders/:id
  */
 export class GetOrderQueryDto {
-  @IsUUID('4', { message: 'tenantId debe ser un UUID válido' })
+  @IsString({ message: 'tenantId debe ser un string válido' })
   @IsNotEmpty({ message: 'tenantId es requerido' })
   tenantId: string;
 }
@@ -31,6 +31,9 @@ export class OrderItemResponseDto {
 
   @ApiProperty()
   productName: string;
+
+  @ApiPropertyOptional()
+  productImageUrl: string | null;
 
   @ApiProperty()
   isService: boolean;
@@ -58,6 +61,23 @@ export class OrderItemResponseDto {
 }
 
 /**
+ * DTO de dirección de envío en respuesta
+ */
+export class ShippingAddressResponseDto {
+  @ApiProperty({ description: 'Provincia' })
+  provincia: string;
+
+  @ApiProperty({ description: 'Cantón' })
+  canton: string;
+
+  @ApiProperty({ description: 'Distrito' })
+  distrito: string;
+
+  @ApiProperty({ description: 'Dirección exacta/señas' })
+  detalles: string;
+}
+
+/**
  * DTO de respuesta completa de una orden
  */
 export class OrderResponseDto {
@@ -82,7 +102,7 @@ export class OrderResponseDto {
   @ApiPropertyOptional()
   customerEmail: string | null;
 
-  @ApiProperty({ enum: ['PENDING_PAYMENT', 'PAID', 'COMPLETED', 'CANCELLED'] })
+  @ApiProperty({ enum: ['DRAFT', 'AWAITING_PAYMENT', 'AWAITING_PAYMENT', 'APPROVED', 'REJECTED', 'PROCESSING', 'READY', 'SHIPPED', 'COMPLETED', 'CANCELLED', 'REFUNDED'] })
   status: string;
 
   @ApiProperty({ description: 'Estado en español' })
@@ -99,6 +119,12 @@ export class OrderResponseDto {
 
   @ApiPropertyOptional()
   customerNotes: string | null;
+
+  @ApiPropertyOptional()
+  paymentProofUrl: string | null;
+
+  @ApiPropertyOptional({ description: 'Dirección de envío', type: ShippingAddressResponseDto })
+  shippingAddress: ShippingAddressResponseDto | null;
 
   @ApiProperty()
   createdAt: Date;

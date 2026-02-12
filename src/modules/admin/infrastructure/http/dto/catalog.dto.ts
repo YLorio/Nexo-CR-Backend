@@ -4,7 +4,6 @@ import {
   IsOptional,
   IsBoolean,
   IsInt,
-  IsUUID,
   Min,
   MaxLength,
   ValidateIf,
@@ -45,7 +44,7 @@ export class ServiceScheduleBlockDto {
 
   @ApiPropertyOptional({ description: 'ID del empleado asignado (null = sin empleado específico)' })
   @IsOptional()
-  @IsUUID('4')
+  @IsString()
   employeeId?: string;
 }
 
@@ -84,11 +83,12 @@ export class CreateCatalogItemDto {
 
   @ApiPropertyOptional({ description: 'ID de la categoría' })
   @IsOptional()
-  @IsUUID('4', { message: 'categoryId debe ser un UUID válido' })
+  @IsString({ message: 'categoryId debe ser un string válido' })
   categoryId?: string;
 
   @ApiProperty({ description: 'Es un servicio (requiere cita)', default: false })
   @IsBoolean()
+  @Type(() => Boolean)
   isService: boolean;
 
   @ApiPropertyOptional({ description: 'Stock inicial (solo para productos)', example: 100 })
@@ -108,6 +108,12 @@ export class CreateCatalogItemDto {
   @IsString()
   @MaxLength(50)
   sku?: string;
+
+  @ApiPropertyOptional({ description: 'Controlar inventario (false para productos sin límite de stock)', default: true })
+  @IsOptional()
+  @IsBoolean()
+  @Type(() => Boolean)
+  trackInventory?: boolean;
 
   @ApiPropertyOptional({
     description: 'Horarios del servicio (solo para servicios)',
@@ -155,8 +161,14 @@ export class UpdateCatalogItemDto {
 
   @ApiPropertyOptional({ description: 'ID de la categoría' })
   @IsOptional()
-  @IsUUID('4')
+  @IsString()
   categoryId?: string;
+
+  @ApiPropertyOptional({ description: 'Es un servicio' })
+  @IsOptional()
+  @IsBoolean()
+  @Type(() => Boolean)
+  isService?: boolean;
 
   @ApiPropertyOptional({ description: 'Stock (solo productos)' })
   @IsOptional()
@@ -175,6 +187,12 @@ export class UpdateCatalogItemDto {
   @IsString()
   @MaxLength(50)
   sku?: string;
+
+  @ApiPropertyOptional({ description: 'Controlar inventario (false para productos sin límite de stock)' })
+  @IsOptional()
+  @IsBoolean()
+  @Type(() => Boolean)
+  trackInventory?: boolean;
 
   @ApiPropertyOptional({ description: 'Estado activo/inactivo' })
   @IsOptional()
@@ -201,7 +219,7 @@ export class UpdateCatalogItemDto {
 export class ListCatalogQueryDto {
   @ApiPropertyOptional({ description: 'Filtrar por categoría' })
   @IsOptional()
-  @IsUUID('4')
+  @IsString()
   categoryId?: string;
 
   @ApiPropertyOptional({ description: 'Filtrar por tipo: producto o servicio' })
@@ -249,9 +267,108 @@ export class CatalogItemResponseDto {
   stock: number;
   durationMinutes: number | null;
   sku: string | null;
+  trackInventory: boolean;
   isActive: boolean;
   sortOrder: number;
   schedules?: ServiceScheduleResponseDto[]; // Horarios (solo para servicios)
   createdAt: Date;
   updatedAt: Date;
+}
+
+/**
+ * DTO para crear categoría con jerarquía
+ */
+export class CreateCategoryDto {
+  @ApiProperty({ example: 'Electrónica' })
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @ApiPropertyOptional({ example: 'Dispositivos electrónicos' })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional({ description: 'ID de la categoría padre' })
+  @IsOptional()
+  @IsString()
+  parentId?: string;
+
+  @ApiPropertyOptional({ example: 'https://example.com/cat.jpg' })
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
+
+  @ApiPropertyOptional({ default: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  sortOrder?: number;
+}
+
+/**
+ * DTO para actualizar categoría
+ */
+export class UpdateCategoryDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  parentId?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  sortOrder?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  isVisible?: boolean;
+}
+
+/**
+ * Item para reordenar categorías
+ */
+export class ReorderCategoryItemDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  id: string;
+
+  @ApiProperty()
+  @IsInt()
+  @Min(0)
+  sortOrder: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  parentId?: string | null;
+}
+
+/**
+ * DTO para reordenar categorías
+ */
+export class ReorderCategoriesDto {
+  @ApiProperty({ type: [ReorderCategoryItemDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ReorderCategoryItemDto)
+  categories: ReorderCategoryItemDto[];
 }

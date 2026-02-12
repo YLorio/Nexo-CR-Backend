@@ -31,7 +31,8 @@ async function bootstrap() {
     : ['http://localhost:3000', 'http://localhost:3012'];
 
   app.enableCors({
-    origin: (origin, callback) => {
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      console.log(`[CORS] Request from origin: ${origin}`);
       // Permitir requests sin origin (mobile apps, Postman, etc.)
       if (!origin) {
         return callback(null, true);
@@ -39,6 +40,7 @@ async function bootstrap() {
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
+      console.warn(`[CORS] Origin ${origin} not allowed. Allowed: ${allowedOrigins.join(', ')}`);
       callback(new Error(`Origin ${origin} not allowed by CORS`));
     },
     credentials: true,

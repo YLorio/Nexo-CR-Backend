@@ -5,6 +5,7 @@ export {
   type CreateOrderItemDTO,
   type CreatedOrderDTO,
   type CreatedOrderItemDTO,
+  type PaymentMethodType,
 } from './ICreateOrderUC';
 
 export {

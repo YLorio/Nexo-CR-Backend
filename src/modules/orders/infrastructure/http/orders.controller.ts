@@ -9,13 +9,20 @@ import {
   HttpStatus,
   Inject,
   NotFoundException,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiParam,
   ApiBody,
+  ApiBearerAuth,
+  ApiConsumes,
 } from '@nestjs/swagger';
 import {
   CreateOrderDto,
@@ -35,9 +42,15 @@ import {
 import { IOrderRepository, ORDER_REPOSITORY } from '../../application/ports/outbound';
 import { Order } from '../../domain/entities';
 import { Money } from '../../domain/value-objects';
+import { JwtAuthGuard } from '../../../../modules/auth/infrastructure/guards/jwt-auth.guard';
+import { Public } from '../../../../modules/auth/infrastructure/decorators/public.decorator';
+import { CurrentUser } from '../../../../modules/auth/infrastructure/decorators/current-user.decorator';
+import { AuthenticatedUser } from '../../../../modules/auth/application/auth.service';
+import { SupabaseStorageService } from '../../../storage/supabase-storage.service';
 
 @ApiTags('Orders')
 @Controller('api/v1/orders')
+@UseGuards(JwtAuthGuard)
 export class OrdersController {
   constructor(
     @Inject(CREATE_ORDER_UC)
@@ -48,11 +61,37 @@ export class OrdersController {
 
     @Inject(ORDER_REPOSITORY)
     private readonly orderRepository: IOrderRepository,
+
+    private readonly storageService: SupabaseStorageService,
   ) {}
+
+  /**
+   * Obtiene las órdenes del usuario autenticado (Historial Global)
+   * NOTA: Este método debe ir ANTES de cualquier ruta con parámetros como :id
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Mis órdenes',
+    description: 'Obtiene el historial de órdenes del usuario autenticado en todas las tiendas.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de órdenes del usuario',
+    type: [OrderResponseDto],
+  })
+  async getMyOrders(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<OrderResponseDto[]> {
+    const orders = await this.orderRepository.findByUserId(user.id);
+    return orders.map((order) => this.mapOrderToResponse(order));
+  }
 
   /**
    * Crea una nueva orden
    */
+  @Public()
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
@@ -70,13 +109,17 @@ export class OrdersController {
   @ApiResponse({ status: 409, description: 'Stock insuficiente o slot no disponible' })
   async createOrder(
     @Body() dto: CreateOrderDto,
+    @CurrentUser() user?: AuthenticatedUser,
   ): Promise<CreatedOrderResponseDto> {
     const result = await this.createOrderUC.execute({
       tenantId: dto.tenantId,
+      userId: user?.id || dto.userId, // Priorizar el del token si existe
       customerName: dto.customerName,
       customerPhone: dto.customerPhone,
       customerEmail: dto.customerEmail,
       customerNotes: dto.customerNotes,
+      paymentMethod: dto.paymentMethod,
+      shippingAddress: dto.shippingAddress,
       items: dto.items.map((item) => ({
         productId: item.productId,
         quantity: item.quantity,
@@ -91,6 +134,7 @@ export class OrdersController {
   /**
    * Obtiene el detalle de una orden
    */
+  @Public()
   @Get(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -149,6 +193,51 @@ export class OrdersController {
   }
 
   /**
+   * Sube el comprobante de pago
+   */
+  @Public()
+  @Post(':id/payment-proof')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Subir comprobante de pago' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Comprobante subido correctamente' })
+  async uploadPaymentProof(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('No se proporcionó ningún archivo');
+    }
+
+    // Verificar que la orden existe
+    const order = await this.orderRepository.findById(id);
+    if (!order) {
+      throw new NotFoundException(`Orden no encontrada: ${id}`);
+    }
+
+    // Subir imagen
+    const result = await this.storageService.uploadFile(file, 'payment-proofs', {
+      maxWidth: 800,
+      maxHeight: 1200,
+      quality: 80,
+    });
+
+    // Actualizar orden con la URL
+    order.setPaymentProofUrl(result.url);
+    await this.orderRepository.update(order);
+
+    return { url: result.url };
+  }
+
+  /**
    * Mapea una entidad Order a OrderResponseDto
    */
   private mapOrderToResponse(order: Order): OrderResponseDto {
@@ -156,6 +245,7 @@ export class OrdersController {
       id: item.id,
       productId: item.productId,
       productName: item.productName,
+      productImageUrl: item.productImageUrl,
       isService: item.productIsService,
       unitPriceInCents: item.unitPriceInCents,
       quantity: item.quantity,
@@ -180,6 +270,13 @@ export class OrdersController {
       totalInCents: order.totalInCents,
       totalFormatted: order.total.format(),
       customerNotes: order.customerNotes,
+      paymentProofUrl: order.paymentProofUrl,
+      shippingAddress: order.shippingAddress ? {
+        provincia: order.shippingAddress.provincia,
+        canton: order.shippingAddress.canton,
+        distrito: order.shippingAddress.distrito,
+        detalles: order.shippingAddress.detalles,
+      } : null,
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
       paidAt: order.paidAt,

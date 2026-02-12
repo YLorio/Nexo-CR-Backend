@@ -1,5 +1,6 @@
 import { PrismaClient, UserRole, UserStatus, PlanType, Currency } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { PROVINCIAS_CR } from './costa-rica-locations';
 
 const prisma = new PrismaClient();
 
@@ -167,6 +168,62 @@ async function main() {
     console.log('✅ Categorías de ejemplo creadas\n');
   } else {
     console.log('ℹ️  Categorías ya existen\n');
+  }
+
+  // ============================================================================
+  // 6. POBLAR UBICACIONES DE COSTA RICA
+  // ============================================================================
+  const existingProvincias = await prisma.provincia.count();
+
+  if (existingProvincias === 0) {
+    console.log('🗺️  Poblando ubicaciones de Costa Rica...');
+
+    let totalCantones = 0;
+    let totalDistritos = 0;
+
+    for (const provincia of PROVINCIAS_CR) {
+      // Crear provincia
+      await prisma.provincia.create({
+        data: {
+          id: provincia.id,
+          nombre: provincia.nombre,
+          sortOrder: parseInt(provincia.id),
+        },
+      });
+
+      // Crear cantones de la provincia
+      for (const canton of provincia.cantones) {
+        await prisma.canton.create({
+          data: {
+            id: canton.id,
+            provinciaId: provincia.id,
+            nombre: canton.nombre,
+            sortOrder: parseInt(canton.id.split('-')[1]),
+          },
+        });
+        totalCantones++;
+
+        // Crear distritos del cantón
+        for (const distrito of canton.distritos) {
+          await prisma.distrito.create({
+            data: {
+              id: distrito.id,
+              cantonId: canton.id,
+              nombre: distrito.nombre,
+              sortOrder: parseInt(distrito.id.split('-')[2]),
+            },
+          });
+          totalDistritos++;
+        }
+      }
+    }
+
+    console.log('✅ Ubicaciones de Costa Rica pobladas:');
+    console.log(`   - ${PROVINCIAS_CR.length} provincias`);
+    console.log(`   - ${totalCantones} cantones`);
+    console.log(`   - ${totalDistritos} distritos\n`);
+  } else {
+    console.log('ℹ️  Ubicaciones de Costa Rica ya existen\n');
   }
 
   // ============================================================================
