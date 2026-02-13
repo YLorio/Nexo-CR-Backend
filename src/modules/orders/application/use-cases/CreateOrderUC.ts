@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { createId } from '@paralleldrive/cuid2';
 import {
   ICreateOrderUC,
   CreateOrderCommand,
@@ -68,7 +68,7 @@ export class CreateOrderUC implements ICreateOrderUC {
       const orderNumber = await this.orderRepository.getNextOrderNumber(command.tenantId);
 
       // 6. Crear los OrderItems
-      const orderId = uuidv4();
+      const orderId = createId();
       const orderItems = this.createOrderItems(orderId, command.items, productMap);
 
       // 7. Determinar el estado inicial según el método de pago
@@ -230,7 +230,7 @@ export class CreateOrderUC implements ICreateOrderUC {
       const product = productMap.get(item.productId)!;
 
       const props: OrderItemProps = {
-        id: uuidv4(),
+        id: createId(),
         orderId,
         productId: product.id,
         productName: product.name,
